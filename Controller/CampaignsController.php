@@ -24,6 +24,20 @@ class AppCampaignsController extends CampaignsAppController {
 	}
 
 /**
+ * nearby method
+ *
+ * @return void
+ */
+	public function nearby($lat = '41.8826374', $long = '-87.6239217', $radius = 1) {
+		App::uses('Map', 'Maps.Model');
+		$Map = new Map();
+		$locations = Set::extract('/Map/foreign_key', $Map->findLocation($lat, $long, 1));
+		$this->paginate['conditions']['Campaign.id'] = $locations;
+		$this->set('campaigns', $campaigns = $this->paginate());
+		$this->set(compact('lat', 'long', 'radius'));
+	}
+
+/**
  * index method
  *
  * @return void
