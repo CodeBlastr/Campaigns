@@ -31,7 +31,8 @@ class AppCampaignsController extends CampaignsAppController {
 	public function nearby($lat = '41.8826374', $long = '-87.6239217', $radius = 1) {
 		App::uses('Map', 'Maps.Model');
 		$Map = new Map();
-		$locations = Set::extract('/Map/foreign_key', $Map->findLocation($lat, $long, 1));
+		$locations = Set::extract('/Map/foreign_key', $Map->findLocation($lat, $long, $radius));
+		//$locations = array('52fb5844-06b4-4a6f-815b-49fd0ad25527', '52fb5867-3dd8-49e0-ad7a-21460ad25527');
 		$this->paginate['conditions']['Campaign.id'] = $locations;
 		$this->set('campaigns', $campaigns = $this->paginate());
 		$this->set(compact('lat', 'long', 'radius'));
@@ -78,6 +79,38 @@ class AppCampaignsController extends CampaignsAppController {
 		$this->Campaign->contain(array('Owner'));
 		$this->set('campaign', $campaign = $this->Campaign->read());
 	}
+	
+/**
+ * wheel method
+ *
+ * NOTE : This is specific to sharendipity, not necessary to save, please copy if removing
+ * @param string $id
+ * @return void
+ */
+	public function wheel($id = null) {
+		 $this->Campaign->id = $id;
+		 
+		 
+
+		 if (!$this->Campaign->exists()) {
+			 throw new NotFoundException(__('Invalid'));
+		 }
+		$this->Campaign->contain(array('Owner'));
+		
+		//App::uses('CampaignResult', 'Campaigns.Model');
+		//$CampaignResult = new CampaignResult();
+		$this->loadModel('Campaigns.CampaignResult');
+		
+		//debug($this->CampaignResult->find('all'));
+		
+		//$this->CampaignResult->query("delete from campaign_results where id='52fcf3f3-1a1c-4768-8aff-3af20ad25527'");		
+		$user_id = $this->Session->read('Auth.User.id');
+		$exists = $this->CampaignResult->find('count', array('conditions'=>array('user_id'=>$user_id, 'campaign_id'=>$id)));
+		//debug($exists);
+		$this->set('campaign', $campaign = $this->Campaign->read());
+		$this->set(compact('exists'));
+	}
+	
 
 /**
  * add method
