@@ -5,8 +5,7 @@ App::uses('CampaignsAppController', 'Campaigns.Controller');
  *
  * @property CampaignResults $CampaignResults
  */
-class CampaignResultsController extends CampaignsAppController {
-
+class CampaignResultsController extends CampaignsAppController {	
 /**
  * Uses
  *
@@ -46,6 +45,12 @@ class CampaignResultsController extends CampaignsAppController {
 		echo json_encode($response);
 		exit;
 	}
+	
+	/**
+ * index method
+ * This method is used to show the share page after user has spinned the wheel, may be there need to add a page between the spin page and results/share page
+ * @return void
+ */
 	
 	public function result($campaign_id=null)	{
 		$upload_dir = ROOT.DS.SITE_DIR.DS.'/Locale/View/webroot/tmp';
@@ -134,16 +139,77 @@ class CampaignResultsController extends CampaignsAppController {
 		$this->set(compact('campaign_result', 'facebook_id'));
 	}
 	
-	function claim($campaign_result_id='')	{
-		$campaign_result_id='530c3cf1-48e0-489c-a502-73240ad25527';
+/**
+ * claim method
+ * This method is supposed to be clicked by a facebook user. This link is sent to user's fb message box as a gift coupon and user click on this link to claim their reward. Completing the redemption by user a gift coupon and reward points or both are awarded to the sender. This link can be clicked by multiple users so this need to be coded in a manner so that one user can redeem their coupon only once. Probaly need to track the fb user id when creating new account for them.
+ * @return void
+ */
+	
+	function claim($campaign_result_id_rw='')	{ //	
+		
+		//debug($this->CampaignResult->query('delete from campaign_results where 1=1'));
+		
+		
+		//$r = $this->CampaignResult->query("select * from campaign_invites");
+		//$this->CampaignResult->query("drop table zbk_campaign_results");
+		//$this->CampaignResult->query("drop table zbk_campaigns");		
+		//$campaign_result_id='530c3cf1-48e0-489c-a502-73240ad25527';
+		$campaign_result_id= base64_decode($campaign_result_id_rw); //this id was encoded to avoid the error in FB dialog API
 		$this->CampaignResult->contain(array('Campaign', 'User'));
 		$this->CampaignResult->id = $campaign_result_id;
 		$campaign_result = $this->CampaignResult->read();
-		//debug($campaign_result);
-		$meta_description = $campaign_result['Campaign']['description'];		
-		//$this->page_title = $campaign_result['Campaign']['name'];
-		$this->set('title_for_layout', $campaign_result['Campaign']['name']);
+		//$this->Session->write('Campaign.campaign_claim_id', $campaign_result_id);
 		
-		$this->set(compact('campaign_result', 'facebook_id', 'meta_description'));
+		$fbmetas = 'true';
+		$this->Session->write('Campaign.campaign_claim_id', $campaign_result_id);
+		if($campaign_result)	{
+			if(!$this->Auth->loggedIn())	{
+				$this->Session->write('Campaign.campaign_claim_id', $campaign_result_id);
+				$this->Auth->loginRedirect = array('controller' => 'campaign_results', 'action' => 'claim', $campaign_result_id_rw);
+				$this->redirect(array('controller'=>'users', 'plugin'=>'users', 'action'=>'login'));
+			}
+			$user_id = $this->Session->read('Auth.User.id');
+			if($this->Connect->user())	{ //facebook check user
+				$this->FB = $this->Connect->user();
+				$facebook_id = $this->FB['id'];
+			}
+			$this->loadModel('Campaigns.CampaignInvite');
+			
+			//debug($this->CampaignInvite->query('delete from campaign_invites where 1=1'));
+			if($this->Session->read('Campaign.campaign_claim_id'))	{
+				$data = array('campaign_result_id'=>$campaign_result_id, 'sender_id'=>$campaign_result['CampaignResult']['user_id'], 'recepient_id'=>$user_id, 'is_redeemed'=>1, 'recepient_fbid'=>$facebook_id);
+				
+				$conditions['recepient_fbid'] = $facebook_id;
+				$conditions['campaign_result_id'] = $campaign_result_id;
+				
+				$first = $this->CampaignInvite->find('first', array('conditions'=>$conditions));
+			
+				if(!$first)	{
+					$saved = $this->CampaignInvite->save($data);
+					if($facebook_id)	{
+						App::import('Lib', 'Facebook.FB');		
+						$FB = new FB();
+						$ret_obj = $FB->api('/me/feed', 'POST',
+							array(
+										'link' => 'http://sharendipity.buildrr.com/',
+										'message' => 'I redeemed a gift coupon worth $5!',
+										'picture' => Router::url('/img/big-shoulders.jpg', true)
+							 ));
+						
+						debug($ret_obj);
+					}
+					$this->Session->delete('Campaign.campaign_claim_id');
+				}
+			}
+		}	else	{
+			//debug($campaign_result);
+			$meta_description = $campaign_result['Campaign']['description'];		
+			//$this->page_title = $campaign_result['Campaign']['name'];
+			$this->set('title_for_layout', $campaign_result['Campaign']['name']);
+		}
+		
+		//debug($campaign_result);
+		
+		$this->set(compact('campaign_result', 'facebook_id', 'meta_description', 'fbmetas'));
 	}
 }
