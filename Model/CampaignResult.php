@@ -52,12 +52,12 @@ class CampaignResult extends CampaignsAppModel {
  *
  * @return array
  */
-	public function afterFind($results = array(), $primary = false) {
+	/*public function afterFind($results = array(), $primary = false) {
 		for ($i=0; $i < count($results); $i++) {
 			$results[$i][$this->alias]['data'] = unserialize($results[$i][$this->alias]['data']);
 		}
 		return parent::afterFind($results, $primary);
-	}
+	}*/
 
 /**
  * Clean Data method
