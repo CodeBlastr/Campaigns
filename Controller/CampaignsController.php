@@ -34,7 +34,11 @@ class AppCampaignsController extends CampaignsAppController {
 		$locations = Set::extract('/Map/foreign_key', $Map->findLocation($lat, $long, $radius));
 		//$locations = array('52fb5844-06b4-4a6f-815b-49fd0ad25527', '52fb5867-3dd8-49e0-ad7a-21460ad25527');
 		$this->paginate['conditions']['Campaign.id'] = $locations;
-		$this->set('campaigns', $campaigns = $this->paginate());
+                $campaigns = $this->paginate();
+                if(!count($campaigns)){
+                    $this->redirect('/');
+                }
+		$this->set('campaigns', $campaigns);
 		$this->set(compact('lat', 'long', 'radius'));
 	}
 
@@ -89,8 +93,6 @@ class AppCampaignsController extends CampaignsAppController {
  */
 	public function wheel($id = null) {
 		 $this->Campaign->id = $id;
-		 
-		 
 
 		 if (!$this->Campaign->exists()) {
 			 throw new NotFoundException(__('Invalid'));
@@ -105,7 +107,7 @@ class AppCampaignsController extends CampaignsAppController {
 		
 		//$this->CampaignResult->query("delete from campaign_results where id='52fcf3f3-1a1c-4768-8aff-3af20ad25527'");		
 		$user_id = $this->Session->read('Auth.User.id');
-		$exists = $this->CampaignResult->find('count', array('conditions'=>array('user_id'=>$user_id, 'campaign_id'=>$id)));
+		$exists = $this->CampaignResult->find('count', array('conditions'=>array('creator_id'=>$user_id, 'campaign_id'=>$id)));
 		//debug($exists);
 		$this->set('campaign', $campaign = $this->Campaign->read());
 		$this->set(compact('exists'));

@@ -25,7 +25,18 @@ class CampaignResult extends CampaignsAppModel {
 			'fields' => '',
 			'order' => ''
 		),
-		'User'
+		'Creator'=>array(
+				'className' => 'Users.User',
+				'foreignKey' => 'creator_id'
+			),
+		'Sender'=>array(
+				'className' => 'Users.User',
+				'foreignKey' => 'sender_id'
+			),
+		'Recepient'=>array(
+				'className' => 'Users.User',
+				'foreignKey' => 'recepient_id'
+			)
 	);
 	
 /**
