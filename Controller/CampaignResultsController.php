@@ -18,8 +18,26 @@ class CampaignResultsController extends CampaignsAppController {
  *
  * @var array
  */
- var $components = array('Auth'=>array('loginRedirect' => array('controller' => 'campaign_results', 'action' => 'claim')), 'Facebook.Connect');
- public $allowedActions = array('result','claim','vouchers','redemption','redemption_swipe','redemption_swipe_confirm');
+ var $components = array(
+ 	'Auth' => array(
+ 		'loginRedirect' => array(
+ 			'controller' => 'campaign_results',
+ 			'action' => 'claim'
+			)
+		), 
+	'Facebook.Connect'
+	);
+
+ public $allowedActions = array(
+ 	'result',
+ 	'claim',
+ 	'vouchers',
+ 	'redemption',
+ 	'redemption_swipe',
+ 	'redemption_swipe_confirm',
+ 	'update',
+ 	'home'
+	);
  	 
 /**
  * index method
@@ -33,13 +51,15 @@ class CampaignResultsController extends CampaignsAppController {
 	public function edit($campaign_id, $result)	{
 		$user_id = $this->Session->read('Auth.User.id');
 		$response=array();	
-		$count = $this->CampaignResult->find('count', array('conditions'=>array('creator_id'=>$user_id, 'campaign_id'=>$campaign_id)));
-		if(!$count)	{
+		$campaign_result = $this->CampaignResult->find('first', array('conditions'=>array('creator_id'=>$user_id, 'campaign_id'=>$campaign_id, 'status'=>STATUS_NOT_SHARED, 'parent_id IS NULL')));
+		if(!$campaign_result)	{
 			$data['CampaignResult'] = array('creator_id'=>$user_id, 'campaign_id'=>$campaign_id, 'coupon_value'=>$result);
 			$this->CampaignResult->save($data);
 			$response['status']='saved';
+			$response['campaign_result_id']=$this->CampaignResult->id;
 		}	else	{
 			$response['status']='exists';
+			$response['campaign_result_id']=$campaign_result['CampaignResult']['id'];
 		}
 		header("Content-type: application/json");
 		echo json_encode($response);
@@ -52,24 +72,32 @@ class CampaignResultsController extends CampaignsAppController {
  * @return void
  */
 	
-	public function result($campaign_id=null)	{
+	public function result($id=null)	{
 		$upload_dir = ROOT.DS.SITE_DIR.DS.'/Locale/View/webroot/tmp';
 		
 		App::import('Lib', 'Facebook.FB');		
 		$FB = new FB();
 		
-		//$ret_obj = $FB->api("/me/friends");
-		//$ret_obj = $FB->api('/me/friendlists');
+		//debug($fbfriends);
+		//$ret_obj = $FB->api('/me/outbox');
+		
+		//$fbfriends = $FB->api("/me/friends");		
 		
 		//$friendList = json_decode($ret_obj);
 		
-		//debug($ret_obj);
-		
 		if($this->request->is('post'))	{
+			
+			debug($this->request->data);
+			
+			$fb_tos = $this->request->data['fbfriend'];
+			
+			//exit;
+			
+			
 			$id = $this->request->data['CampaignResult']['id'];
 			$feed = array(
-					'link' => Router::url(array('controller'=>'campaign_results', 'action'=>'result', $id), true),
-					'message' => 'I would like to share a free coupon with you!'
+					'link' => Router::url(array('controller'=>'campaign_results', 'action'=>'claim', base64_encode($id)), true),
+					'message' => 'This is how it is coming Richard'
 			 );
 			if($this->request->data['CampaignResult']['imagefile']['error']==0)	{
 				//pr("uploading");
@@ -80,10 +108,28 @@ class CampaignResultsController extends CampaignsAppController {
 			if($picture)	{
 				$feed['picture'] = $picture;
 			}
+			
+			foreach($fb_tos as $friend_id)	{
+					$ret_obj = $FB->api('/'.$friend_id.'/feed', 'POST', $feed);
+				  
+				 debug($ret_obj);
+		  }
+		  
+		  exit;
 			//pr($feed);
 		}
 		
-
+		if($this->Session->read('Facebook.Friends'))	{
+			$fbfriends = $this->Session->read('Facebook.Friends');
+		}	else	{
+			$fbfriends = $FB->api("/me/friends");
+			$this->Session->write('Facebook.Friends', $fbfriends);
+		}
+		
+		if(isset($fbfriends['data']) && count($fbfriends['data'])>0)	{
+			asort($fbfriends['data']);
+		}
+		
 		//$FB = FB::api('/me');
 		//$FBME = $FB->api('/me');
 		
@@ -122,19 +168,20 @@ class CampaignResultsController extends CampaignsAppController {
 		//$this->CampaignResult->save($data);
 		//debug($this->Connect->user());
 		if($this->Connect->user())	{ //facebook check user
-					$this->FB = $this->Connect->user();
-					//debug($this->FB);
-					$facebook_id = $this->FB['id'];
-					//debug($this->facebookUser);
+			$this->FB = $this->Connect->user();
+			//debug($this->FB);
+			$facebook_id = $this->FB['id'];
+			//debug($this->facebookUser);
 		}
 		
 		//echo $facebook_id;
 		
 		$user_id = $this->Session->read('Auth.User.id');
 		$this->CampaignResult->contain(array('Campaign', 'Creator'));
-		$campaign_result = $this->CampaignResult->find('first', array('conditions'=>array('CampaignResult.creator_id'=>$user_id, 'CampaignResult.campaign_id'=>$campaign_id)));
+		//$campaign_result = $this->CampaignResult->find('first', array('conditions'=>array('CampaignResult.creator_id'=>$user_id, 'CampaignResult.campaign_id'=>$campaign_id)));
+		$campaign_result = $this->CampaignResult->find('first', array('conditions'=>array('CampaignResult.creator_id'=>$user_id, 'CampaignResult.id'=>$id)));
 		//debug($campaign_result);
-		$this->set(compact('campaign_result', 'facebook_id'));
+		$this->set(compact('campaign_result', 'facebook_id', 'fbfriends'));
 	}
 	
 /**
@@ -147,7 +194,7 @@ class CampaignResultsController extends CampaignsAppController {
  * @return void
  */
 	
-	function claim($campaign_result_id_rw=''){ //	
+	function claim($resultId ='')	{ //	
 		
 		//debug($this->Auth->loginRedirect);
 		//exit;
@@ -169,13 +216,27 @@ class CampaignResultsController extends CampaignsAppController {
 		//$this->CampaignResult->query("drop table zbk_campaign_results");
 		//$this->CampaignResult->query("drop table zbk_campaigns");		
 		//$campaign_result_id='530c3cf1-48e0-489c-a502-73240ad25527';
-		$campaign_result_id= base64_decode($campaign_result_id_rw); //this id was encoded to avoid the error in FB dialog API
+		$campaign_result_id= base64_decode($resultId); //this id was encoded to avoid the error in FB dialog API
+		// checking to see if base64 decode actually produced anything, if not, then we have a real id.
+		$campaign_result_id = !empty($campaign_result_id) ? $campaign_result_id : $resultId; //Richard undid, because the link received on Facebook wasn't encoded 3/18/2014
+		if (empty($campaign_result_id)) {
+			// we seem to get here, if you share a link with someone who is not already registered on sharendipity
+			// and they are signing up for the first time, coming from a claim link, it takes them to login, then when
+			// they get back to this claim page the actual id is given, not a base64_encoded() id. 
+			// IMPORTANT : I fixed it by putting the line above in (190)
+			debug('base 64 decode did not work');
+			debug($resultId);
+			exit;
+		}
+		
 		$this->CampaignResult->contain(array('Campaign', 'Creator'));
 		$this->CampaignResult->id = $campaign_result_id;
 		$campaign_result = $this->CampaignResult->read();
 		
 		if(!$campaign_result)	{
-			die('No such compaign');
+			$this->Session->setFlash(__('No campaign found! You got here from a bad link.')); 
+			$this->redirect('/users/users/my');
+			//die('No such campaign');
 		}
 		
 		$sender_id = $campaign_result['CampaignResult']['creator_id']; //it is creator_id who shared it. We are updating the compaign result after user has save using ajax(Todo) so it's better we pick creator_id who is the sender in most cases.
@@ -185,22 +246,29 @@ class CampaignResultsController extends CampaignsAppController {
 		$fbmetas = 'true';
 		
 		if(!$agent_facebook)	{
-			$this->Session->write('Campaign.campaign_claim_id', $campaign_result_id);
+			//$this->Session->write('Campaign.campaign_claim_id', base64_encode($campaign_result_id));
 			if($campaign_result)	{
 				if(!$this->Auth->loggedIn())	{
-					$this->Session->write('Campaign.campaign_claim_id', $campaign_result_id);
-					$this->Auth->loginRedirect = array('controller' => 'campaign_results', 'action' => 'claim', $campaign_result_id_rw);
+					$this->Session->write('Campaign.campaign_claim_id', base64_encode($campaign_result_id));
+					$this->Auth->loginRedirect = array('controller' => 'campaign_results', 'action' => 'claim', $resultId);
 					$this->redirect(array('controller'=>'users', 'plugin'=>'users', 'action'=>'login'));
 				}
 				$user_id = $this->Session->read('Auth.User.id');
 						
-				/*if($sender_id==$user_id)	{
+				if($sender_id==$user_id)	{
 					die('Cannot claim your own gift coupon');
-				}*/
+				}
 				
-				if($this->Connect->user())	{ //facebook check user
+				if ($this->Connect->user())	{ //facebook check user
 					$this->FB = $this->Connect->user();
 					$facebook_id = $this->FB['id'];
+				}
+				if (empty($facebook_id)) {
+					// we seem to get here, if you share a link with someone who is not already registered on sharendipity
+					// and they are signing up for the first time, coming from a claim link
+					debug('No facebook id');
+					debug($this->FB);
+					exit;
 				}
 				//$this->loadModel('Campaigns.CampaignInvite');
 				
@@ -208,8 +276,9 @@ class CampaignResultsController extends CampaignsAppController {
 				//	exit;
 				
 				//debug($this->CampaignInvite->query('delete from campaign_invites where 1=1'));
+				
 				if($this->Session->read('Campaign.campaign_claim_id'))	{
-					$data = array('parent_id'=>$campaign_result_id, 'sender_id'=>$campaign_result['CampaignResult']['creator_id'], 'recepient_id'=>$user_id, 'status'=>1, 'recepient_fbid'=>$facebook_id, 'coupon_value'=>$campaign_result['CampaignResult']['coupon_value']); //status 1 means this coupon is ready to use.
+					$data = array('parent_id'=>$campaign_result_id, 'campaign_id'=>$campaign_result['CampaignResult']['campaign_id'], 'sender_id'=>$campaign_result['CampaignResult']['creator_id'], 'recepient_id'=>$user_id, 'status'=>STATUS_USABLE, 'recepient_fbid'=>$facebook_id, 'coupon_value'=>$campaign_result['CampaignResult']['coupon_value']); //status 1 means this coupon is ready to use.
 					
 					if($facebook_id)	{					
 						$conditions['recepient_fbid'] = $facebook_id; //it's better to find with fb it and there is chance that user may try to click and receive a coupon multiple times.
@@ -266,26 +335,23 @@ class CampaignResultsController extends CampaignsAppController {
 		
 	}
 	
-	public function vouchers($action='') {
+	public function vouchers($action='received') {
 
 		$user_id = $this->Session->read('Auth.User.id');
 		
-		if(!$action) $action='shared';
-		
 		switch($action)	{
 			case 'shared':
-				$conditions = array('CampaignResult.creator_id'=>$user_id);
+				$conditions = array('CampaignResult.sender_id'=>$user_id, 'CampaignResult.parent_id IS NULL');
 			break;
 			case 'received':
-				$conditions = array('CampaignResult.recepient_id'=>$user_id, 'CampaignResult.status'=>array(1,2)); 
+				$conditions = array('CampaignResult.recepient_id'=>$user_id, 'CampaignResult.sender_id !='=>$user_id,); 
 			break;
 		}
 		
 		//$this->CampaignResult->recursive = 2;
-		$this->CampaignResult->contain(array('Campaign','Recepient','Creator'));
+		$this->CampaignResult->contain(array('Campaign','Recepient','Sender'));
 		//$this->CampaignResult->Campaign->contain(array('Owner'));
 		$vouchers = $this->CampaignResult->find('all', array('conditions'=>$conditions));
-		
 		
 		//debug($vouchers);
 		
@@ -297,9 +363,9 @@ class CampaignResultsController extends CampaignsAppController {
 		
 	}
         
-        public function redemption($coupan_id) {
+   public function redemption($coupan_id) {
 		$user_id = $this->Session->read('Auth.User.id');
-		$conditions = array('CampaignResult.id'=>$coupan_id,'CampaignResult.recepient_id'=>$user_id,'CampaignResult.status'=>1);
+		$conditions = array('CampaignResult.id'=>$coupan_id,'CampaignResult.recepient_id'=>$user_id,'CampaignResult.status'=>STATUS_USABLE);
 		
 		//$this->CampaignResult->recursive = 2;
 		$this->CampaignResult->contain(array('Campaign','Recepient'));
@@ -319,7 +385,7 @@ class CampaignResultsController extends CampaignsAppController {
         
        public function redemption_swipe($coupan_id) {
 		$user_id = $this->Session->read('Auth.User.id');
-		$conditions = array('CampaignResult.id'=>$coupan_id,'CampaignResult.recepient_id'=>$user_id,'CampaignResult.status'=>1);
+		$conditions = array('CampaignResult.id'=>$coupan_id,'CampaignResult.recepient_id'=>$user_id,'CampaignResult.status'=>STATUS_USABLE);
 		$this->CampaignResult->contain(array('Campaign','Recepient'));
 		$redemption = $this->CampaignResult->find('all', array('conditions'=>$conditions));
 		$this->set(compact('redemption'));
@@ -328,7 +394,7 @@ class CampaignResultsController extends CampaignsAppController {
 		$user_id = $this->Session->read('Auth.User.id');
 		if($user_id)	{
 			$this->CampaignResult->id = $coupan_id;
-			$data = array('status'=>2);
+			$data = array('status'=>STATUS_USED);
 			$this->CampaignResult->save($data);
                         
                         $this->CampaignResult->id = $campaign_result_id;
@@ -338,12 +404,36 @@ class CampaignResultsController extends CampaignsAppController {
 		}
 	}
         
-	public function update($campaign_result_id, $status) {
+	public function update($campaign_result_id, $status) {		
+		//debug($this->request->data);		
 		$user_id = $this->Session->read('Auth.User.id');
-		if($user_id)	{
-			$this->CampaignResult->id = $campaign_result_id;
-			$data = array('status'=>0);
-			$this->CampaignResult->save($data);
+		$sent = false;
+		if($user_id)	{			
+			if(isset($this->request->data['tos']))	{
+				$tos = explode(',', $this->request->data['tos']);
+				//debug($tos);
+				if(count($tos)>0)	{					
+					$this->CampaignResult->id = $campaign_result_id;
+					$campaign = $this->CampaignResult->read(array('campaign_id', 'coupon_value'));
+					$campaign_id = $campaign['CampaignResult']['campaign_id'];
+					//debug($campaign);
+					foreach($tos as $fbid)	{
+						$count = $this->CampaignResult->find('count', array('conditions'=>array('campaign_id'=>$campaign_id, 'sender_id'=>$user_id, 'recepient_fbid'=>$fbid))); //optional check whether this user has send request for this user for this campaign earlier
+						if(!$count>0)	{
+							$this->CampaignResult->id = null;
+							$data = array('parent_id'=>$campaign_result_id, 'campaign_id'=>$campaign['CampaignResult']['campaign_id'], 'status'=>STATUS_NOT_SHARED, 'sender_id'=>$user_id, 'recepient_fbid'=>$fbid, 'coupon_value'=>$campaign['CampaignResult']['coupon_value']); //sender & recipient is self
+							//debug($data);
+							$this->CampaignResult->save($data);
+							$sent = true;
+						}
+					}
+				}
+			}
+			if($sent)	{
+				$this->CampaignResult->id = $campaign_result_id;
+				$data = array('status'=>STATUS_USABLE, 'sender_id'=>$user_id, 'recepient_id'=>$user_id); //sender & recipient is self
+				$this->CampaignResult->save($data);
+			}
 			exit;
 		}
 	}
