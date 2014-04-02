@@ -51,7 +51,7 @@ class CampaignResultsController extends CampaignsAppController {
 	public function edit($campaign_id, $result)	{
 		$user_id = $this->Session->read('Auth.User.id');
 		$response=array();	
-		$campaign_result = $this->CampaignResult->find('first', array('conditions'=>array('creator_id'=>$user_id, 'campaign_id'=>$campaign_id, 'status'=>STATUS_NOT_SHARED, 'parent_id IS NULL')));
+		$campaign_result = $this->CampaignResult->find('first', array('conditions'=>array('creator_id'=>$user_id, 'campaign_id'=>$campaign_id, 'status'=>STATUS_PENDING, 'parent_id IS NULL')));
 		if(!$campaign_result)	{
 			$data['CampaignResult'] = array('creator_id'=>$user_id, 'campaign_id'=>$campaign_id, 'coupon_value'=>$result);
 			$this->CampaignResult->save($data);
@@ -126,9 +126,7 @@ class CampaignResultsController extends CampaignsAppController {
 			$this->Session->write('Facebook.Friends', $fbfriends);
 		}
 		
-		if(isset($fbfriends['data']) && count($fbfriends['data'])>0)	{
-			asort($fbfriends['data']);
-		}
+
 		
 		//$FB = FB::api('/me');
 		//$FBME = $FB->api('/me');
@@ -179,9 +177,27 @@ class CampaignResultsController extends CampaignsAppController {
 		$user_id = $this->Session->read('Auth.User.id');
 		$this->CampaignResult->contain(array('Campaign', 'Creator'));
 		//$campaign_result = $this->CampaignResult->find('first', array('conditions'=>array('CampaignResult.creator_id'=>$user_id, 'CampaignResult.campaign_id'=>$campaign_id)));
-		$campaign_result = $this->CampaignResult->find('first', array('conditions'=>array('CampaignResult.creator_id'=>$user_id, 'CampaignResult.id'=>$id)));
+		
+		$campaign_result = $this->CampaignResult->find('first',  array('conditions'=>array('CampaignResult.creator_id'=>$user_id, 'CampaignResult.id'=>$id)));
 		//debug($campaign_result);
+		$campaign_id = $campaign_result['CampaignResult']['campaign_id'];
+		
+		//get a list of fb user with whom this user has shared a coupon for this campaign already and filter those fb id fs out from possible recipients
+		$fbsharedwith = $this->CampaignResult->find('all', array('conditions'=>array('CampaignResult.campaign_id'=>$campaign_id, 'sender_id'=>$user_id, 'CampaignResult.recepient_fbid IS NOT NULL'), 'fields'=>array('CampaignResult.recepient_fbid')));
+		if(isset($fbfriends['data']) && count($fbfriends['data'])>0)	{
+			asort($fbfriends['data']);
+			foreach($fbfriends['data'] as $i=>$data)	{
+				if($fbsharedwith) 	{
+					foreach($fbsharedwith as $fbsentto)	{
+						if($data['id']==$fbsentto['CampaignResult']['recepient_fbid'])	{
+							unset($fbfriends['data'][$i]);
+						}
+					}
+				}
+			}
+		}
 		$this->set(compact('campaign_result', 'facebook_id', 'fbfriends'));
+		
 	}
 	
 /**
@@ -339,70 +355,154 @@ class CampaignResultsController extends CampaignsAppController {
 
 		$user_id = $this->Session->read('Auth.User.id');
 		
-		switch($action)	{
+		$fields_default = array('CampaignResult.id', 'Campaign.name', 'Campaign.owner_id', 'CampaignResult.created', 'CampaignResult.coupon_value', 'CampaignResult.status');
+		
+		//get pending vouchers ;  "Pending" means that it's been shared			
+		$fields_pending = array('Creator.full_name');		//additional field full_name of creator as there is no value in Sender or Recipient
+		$conditions = array('CampaignResult.creator_id'=>$user_id, 'CampaignResult.parent_id IS NULL', 'CampaignResult.status'=>STATUS_SHARED); //
+		$this->CampaignResult->contain(array('Campaign','Creator'));
+		$fields = array_merge($fields_default, $fields_pending);
+		$vouchers_pending = $this->CampaignResult->find('all', array('conditions'=>$conditions, 'fields'=>$fields));
+		
+		//get pending vouchers ;  "Pending" means that it's been shared			
+		$fields_available = array('Sender.full_name', 'Creator.full_name');		//additional field full_name of creator as there is no value in Sender or Recipient
+		$conditions = array('CampaignResult.recepient_id'=>$user_id, 'CampaignResult.status'=>STATUS_SHARED); //
+		$this->CampaignResult->contain(array('Campaign','Sender', 'Recepient', 'Creator'));
+		$fields = array_merge($fields_default, $fields_available);
+		//debug($fields);
+		$vouchers_available = $this->CampaignResult->find('all', array('conditions'=>$conditions, 'fields'=>$fields));
+		
+		//debug($vouchers_available);
+		
+		//get pending vouchers ;  "Pending" means that it's been shared			
+		$fields_used = array('Sender.full_name', 'Creator.full_name');		//additional field full_name of creator as there is no value in Sender or Recipient
+		$conditions = array('CampaignResult.recepient_id'=>$user_id, 'CampaignResult.status'=>STATUS_USED); //
+		$this->CampaignResult->contain(array('Campaign','Sender', 'Recepient', 'Creator'));
+		$fields = array_merge($fields_default, $fields_used);
+		//debug($fields);
+		$vouchers_used = $this->CampaignResult->find('all', array('conditions'=>$conditions, 'fields'=>$fields));
+		
+		//debug($vouchers_used);
+		
+		
+		/*switch($action)	{
 			case 'shared':
 				$conditions = array('CampaignResult.sender_id'=>$user_id, 'CampaignResult.parent_id IS NULL');
 			break;
 			case 'received':
 				$conditions = array('CampaignResult.recepient_id'=>$user_id, 'CampaignResult.sender_id !='=>$user_id,); 
 			break;
-		}
+		}*/
 		
 		//$this->CampaignResult->recursive = 2;
 		$this->CampaignResult->contain(array('Campaign','Recepient','Sender'));
 		//$this->CampaignResult->Campaign->contain(array('Owner'));
-		$vouchers = $this->CampaignResult->find('all', array('conditions'=>$conditions));
+		//$vouchers = $this->CampaignResult->find('all', array('conditions'=>$conditions));
 		
 		//debug($vouchers);
 		
-		$this->set(compact('vouchers', 'action'));
+		$this->set(compact('vouchers_available', 'vouchers_pending', 'vouchers_used'));
 		
 		//$conditions['CampaignResult.user_id'] = 
 		
 		//$campaign_result = $this->CampaignResult->find('all', array('conditions'=>$conditions));
 		
-	}
-        
-   public function redemption($coupan_id) {
-		$user_id = $this->Session->read('Auth.User.id');
-		$conditions = array('CampaignResult.id'=>$coupan_id,'CampaignResult.recepient_id'=>$user_id,'CampaignResult.status'=>STATUS_USABLE);
 		
-		//$this->CampaignResult->recursive = 2;
-		$this->CampaignResult->contain(array('Campaign','Recepient'));
-		//$this->CampaignResult->Campaign->contain(array('Owner'));
-		$redemption = $this->CampaignResult->find('all', array('conditions'=>$conditions));
-		
-		
-		//debug($vouchers);
-		
-		$this->set(compact('redemption'));
-		
-		//$conditions['CampaignResult.user_id'] = 
-		
-		//$campaign_result = $this->CampaignResult->find('all', array('conditions'=>$conditions));
+		$this->render('vouchers_tabbed');
 		
 	}
         
-       public function redemption_swipe($coupan_id) {
-		$user_id = $this->Session->read('Auth.User.id');
-		$conditions = array('CampaignResult.id'=>$coupan_id,'CampaignResult.recepient_id'=>$user_id,'CampaignResult.status'=>STATUS_USABLE);
-		$this->CampaignResult->contain(array('Campaign','Recepient'));
-		$redemption = $this->CampaignResult->find('all', array('conditions'=>$conditions));
-		$this->set(compact('redemption'));
-	}
-        public function redemption_swipe_confirm($coupan_id) {
-		$user_id = $this->Session->read('Auth.User.id');
-		if($user_id)	{
-			$this->CampaignResult->id = $coupan_id;
-			$data = array('status'=>STATUS_USED);
-			$this->CampaignResult->save($data);
-                        
-                        $this->CampaignResult->id = $campaign_result_id;
-                        $campaign = $this->CampaignResult->read();
-                        $this->set(compact('campaign'));
-                        $this->render('redemption_swipe_thankyou');
+		public function redemption($id, $swipe=null, $confirm=null) {
+			
+			$user_id = $this->Session->read('Auth.User.id');
+			
+			$redeemed = false;$giftyType = 'referral';
+			
+			$this->CampaignResult->id = $id;
+			//debug($this->request->data);
+			if (!$this->CampaignResult->exists()) {
+				throw new NotFoundException(__('Invalid'));
+			}
+			
+			$this->CampaignResult->contain(array('Campaign','Recepient'));
+			
+			$voucher = $this->CampaignResult->read();
+			
+			//debug($voucher);
+			
+			if ($voucher['CampaignResult']['recepient_id']!=$user_id) {
+				throw new NotFoundException(__('Invalid User'));
+			}
+			
+			if(!is_null($swipe) & !is_null($confirm))	{				
+				if($this->request->is('post')) {
+					//debug($this->request->data);
+					$id = $this->request->data['CampaignResult']['id'];
+					$code = $this->request->data['CampaignResult']['code'];
+					if(strtoupper($code)=="YES") {						
+						//change the status of this gifty
+						$data = array('status'=>STATUS_USED);
+						$this->CampaignResult->save($data);
+						
+						//change the status for the sharer of this gifty, if is a child
+						if(!is_null($voucher['CampaignResult']['parent_id']))	{
+							$this->CampaignResult->id = $voucher['CampaignResult']['parent_id'];
+							$data = array('status'=>STATUS_USABLE);
+							$this->CampaignResult->save($data);
+						}	else	{
+							$giftyType = 'reward';
+						}
+						
+						$redeemed = true;
+					}	else	{
+						$incorrectcode = true;
+					}
+				}
+			}		
+
+			//$conditions = array('CampaignResult.id'=>$coupan_id,'CampaignResult.recepient_id'=>$user_id,'CampaignResult.status'=>STATUS_SHARED);
+			//$this->CampaignResult->recursive = 2;
+			
+			//$this->CampaignResult->Campaign->contain(array('Owner'));
+			//$voucher = $this->CampaignResult->read();
+			
+			//debug($swipe);
+			//debug($redeemed);
+
+			$this->set(compact('voucher', 'swipe', 'confirm', 'incorrectcode', 'redeemed', 'giftyType'));
+			//debug($voucher);			
+			//$campaign_result = $this->CampaignResult->find('all', array('conditions'=>$conditions));
 		}
-	}
+        
+		public function redemption_swipe($id) {
+			$this->CampaignResult->id = $id;
+			if (!$this->CampaignResult->exists()) {
+				throw new NotFoundException(__('Invalid'));
+			}
+			$user_id = $this->Session->read('Auth.User.id');
+			//$conditions = array('CampaignResult.id'=>$coupan_id);
+			//,'CampaignResult.recepient_id'=>$user_id,'CampaignResult.status'=>STATUS_USABLE
+			$this->CampaignResult->contain(array('Campaign','Recepient'));
+			$voucher = $this->CampaignResult->read();
+			$this->set(compact('voucher'));
+		}
+    
+		public function redemption_swipe_confirm($id) {
+			$this->CampaignResult->id = $id;
+			if (!$this->CampaignResult->exists()) {
+				throw new NotFoundException(__('Invalid'));
+			}
+			$user_id = $this->Session->read('Auth.User.id');
+			if($user_id)	{
+				$this->CampaignResult->id = $id;
+				$data = array('status'=>STATUS_USED);
+				$this->CampaignResult->save($data);
+				//$this->CampaignResult->id = $campaign_result_id;
+				$campaign = $this->CampaignResult->read();
+				$this->set(compact('campaign'));
+				$this->render('redemption_swipe_thankyou');
+			}
+		}
         
 	public function update($campaign_result_id, $status) {		
 		//debug($this->request->data);		
@@ -421,7 +521,7 @@ class CampaignResultsController extends CampaignsAppController {
 						$count = $this->CampaignResult->find('count', array('conditions'=>array('campaign_id'=>$campaign_id, 'sender_id'=>$user_id, 'recepient_fbid'=>$fbid))); //optional check whether this user has send request for this user for this campaign earlier
 						if(!$count>0)	{
 							$this->CampaignResult->id = null;
-							$data = array('parent_id'=>$campaign_result_id, 'campaign_id'=>$campaign['CampaignResult']['campaign_id'], 'status'=>STATUS_NOT_SHARED, 'sender_id'=>$user_id, 'recepient_fbid'=>$fbid, 'coupon_value'=>$campaign['CampaignResult']['coupon_value']); //sender & recipient is self
+							$data = array('parent_id'=>$campaign_result_id, 'campaign_id'=>$campaign['CampaignResult']['campaign_id'], 'status'=>STATUS_PENDING, 'sender_id'=>$user_id, 'recepient_fbid'=>$fbid, 'coupon_value'=>$campaign['CampaignResult']['coupon_value']); //sender & recipient is self
 							//debug($data);
 							$this->CampaignResult->save($data);
 							$sent = true;
@@ -431,7 +531,7 @@ class CampaignResultsController extends CampaignsAppController {
 			}
 			if($sent)	{
 				$this->CampaignResult->id = $campaign_result_id;
-				$data = array('status'=>STATUS_USABLE, 'sender_id'=>$user_id, 'recepient_id'=>$user_id); //sender & recipient is self
+				$data = array('status'=>STATUS_SHARED, 'recepient_id'=>$user_id); //sender & recipient is self
 				$this->CampaignResult->save($data);
 			}
 			exit;

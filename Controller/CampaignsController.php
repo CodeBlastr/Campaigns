@@ -31,11 +31,11 @@ class AppCampaignsController extends CampaignsAppController {
 			$this->FB = $this->Connect->user();
 			$facebook_id = $this->FB['id'];
 		}
-		$pending_vouchers = $this->CampaignResult->find('all', array('conditions'=>array('CampaignResult.recepient_fbid'=>$facebook_id, 'CampaignResult.status'=>STATUS_NOT_SHARED)));
+		$pending_vouchers = $this->CampaignResult->find('all', array('conditions'=>array('CampaignResult.recepient_fbid'=>$facebook_id, 'CampaignResult.status'=>STATUS_PENDING)));
 		if(count($pending_vouchers)>0)	{
 			foreach($pending_vouchers as $voucher)	{
 				$this->CampaignResult->id = $voucher['CampaignResult']['id'];
-				$this->CampaignResult->save(array('recepient_id'=>$user_id, 'status'=>STATUS_USABLE));
+				$this->CampaignResult->save(array('recepient_id'=>$user_id, 'status'=>STATUS_SHARED));
 			}
 		}
 		$this->Session->write('Facebook.refresh_vouchers', true);
@@ -64,7 +64,7 @@ class AppCampaignsController extends CampaignsAppController {
 		
 		foreach($campaigns as $i=>$campaign)	{
 			$campaign_id = $campaign['Campaign']['id'];
-			$count = $this->CampaignResult->find('count', array('conditions'=>array('CampaignResult.campaign_id'=>$campaign_id, 'CampaignResult.status >'=>STATUS_NOT_SHARED)));
+			$count = $this->CampaignResult->find('count', array('conditions'=>array('CampaignResult.campaign_id'=>$campaign_id, 'CampaignResult.status >'=>STATUS_PENDING)));
 			$campaigns[$i]['Campaign']['shared_count'] = $count;
 		}
 		$this->set('campaigns', $campaigns);
@@ -136,7 +136,7 @@ class AppCampaignsController extends CampaignsAppController {
 		
 		//$this->CampaignResult->query("delete from campaign_results where id='52fcf3f3-1a1c-4768-8aff-3af20ad25527'");		
 		$user_id = $this->Session->read('Auth.User.id');
-		$campaign_result = $this->CampaignResult->find('first', array('conditions'=>array('creator_id'=>$user_id, 'campaign_id'=>$id, 'status'=>STATUS_NOT_SHARED, 'parent_id IS NULL')));
+		$campaign_result = $this->CampaignResult->find('first', array('conditions'=>array('creator_id'=>$user_id, 'campaign_id'=>$id, 'status'=>STATUS_PENDING, 'parent_id IS NULL')));
 		
 		$exists = $campaign_result ? 1 : 0;
 		
