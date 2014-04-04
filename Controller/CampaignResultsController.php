@@ -366,7 +366,7 @@ class CampaignResultsController extends CampaignsAppController {
 		
 		//get pending vouchers ;  "Pending" means that it's been shared			
 		$fields_available = array('Sender.full_name', 'Creator.full_name');		//additional field full_name of creator as there is no value in Sender or Recipient
-		$conditions = array('CampaignResult.recepient_id'=>$user_id, 'CampaignResult.status'=>STATUS_SHARED); //
+		$conditions = array('CampaignResult.recepient_id'=>$user_id, 'CampaignResult.status'=>STATUS_USABLE); //
 		$this->CampaignResult->contain(array('Campaign','Sender', 'Recepient', 'Creator'));
 		$fields = array_merge($fields_default, $fields_available);
 		//debug($fields);
@@ -418,13 +418,15 @@ class CampaignResultsController extends CampaignsAppController {
 			
 			$redeemed = false;$giftyType = 'referral';
 			
+			if(isset($_REQUEST['dd'])) $redeemed = true;
+			
 			$this->CampaignResult->id = $id;
 			//debug($this->request->data);
 			if (!$this->CampaignResult->exists()) {
 				throw new NotFoundException(__('Invalid'));
 			}
 			
-			$this->CampaignResult->contain(array('Campaign','Recepient'));
+			$this->CampaignResult->contain(array('Campaign','Recepient', 'Sender'));
 			
 			$voucher = $this->CampaignResult->read();
 			

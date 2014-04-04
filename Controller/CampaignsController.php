@@ -31,11 +31,16 @@ class AppCampaignsController extends CampaignsAppController {
 			$this->FB = $this->Connect->user();
 			$facebook_id = $this->FB['id'];
 		}
-		$pending_vouchers = $this->CampaignResult->find('all', array('conditions'=>array('CampaignResult.recepient_fbid'=>$facebook_id, 'CampaignResult.status'=>STATUS_PENDING)));
+		$pending_vouchers = $this->CampaignResult->find('all', array('conditions'=>array('CampaignResult.recepient_fbid'=>$facebook_id, 'CampaignResult.status'=>array(STATUS_PENDING, STATUS_SHARED))));
 		if(count($pending_vouchers)>0)	{
 			foreach($pending_vouchers as $voucher)	{
 				$this->CampaignResult->id = $voucher['CampaignResult']['id'];
-				$this->CampaignResult->save(array('recepient_id'=>$user_id, 'status'=>STATUS_SHARED));
+				$this->CampaignResult->save(array('recepient_id'=>$user_id, 'status'=>STATUS_USABLE));
+				//Make the parent voucher as "Available" for the sharer
+				if(!is_null($voucher['CampaignResult']['parent_id']))	{				
+					$this->CampaignResult->id = $voucher['CampaignResult']['parent_id'];
+					$this->CampaignResult->save(array('status'=>STATUS_SHARED, 'sender_id'=>$user_id));
+				}
 			}
 		}
 		$this->Session->write('Facebook.refresh_vouchers', true);
@@ -60,15 +65,19 @@ class AppCampaignsController extends CampaignsAppController {
 		
 		$this->loadModel('Campaigns.CampaignResult');
 		
-		$this->__processVouchers();
+		//$this->__processVouchers();
 		
 		foreach($campaigns as $i=>$campaign)	{
 			$campaign_id = $campaign['Campaign']['id'];
 			$count = $this->CampaignResult->find('count', array('conditions'=>array('CampaignResult.campaign_id'=>$campaign_id, 'CampaignResult.status >'=>STATUS_PENDING)));
 			$campaigns[$i]['Campaign']['shared_count'] = $count;
 		}
+		//$campaigns = null;
 		$this->set('campaigns', $campaigns);
 		$this->set(compact('lat', 'long', 'radius'));
+		if(!count($campaigns)>0)	{
+			$this->render('nonearbycampaigns');
+		}
 	}
 
 /**
@@ -140,6 +149,10 @@ class AppCampaignsController extends CampaignsAppController {
 		
 		$exists = $campaign_result ? 1 : 0;
 		
+		if($exists) {
+			$this->redirect('/campaigns/campaign_results/result/'.$campaign_result['CampaignResult']['id']);
+		}
+		
 		$this->set('campaign', $campaign = $this->Campaign->read());
 		$this->set(compact('campaign_result', 'exists'));
 	}
@@ -207,9 +220,25 @@ class AppCampaignsController extends CampaignsAppController {
 	}
 	
 	public function home()	{
+		
+		$this->layout = 'ajax';
+		
 		$this->loadModel('Campaigns.CampaignResult');
+		
+		$this->__processVouchers();
+		
 		$user_id = $this->Session->read('Auth.User.id');
-		$usable_count = $this->CampaignResult->find('count', array('conditions'=>array('recepient_id'=>$user_id, 'status'=>STATUS_USABLE)));
+		
+		$sharesamount = 0;
+		
+		$user = $this->Session->read('Auth.User');
+		
+		$usable_count = $this->CampaignResult->find('count', array('conditions'=>array('recepient_id'=>$user_id, 'status'=>STATUS_USABLE)));		
+		$sharescount = $this->CampaignResult->find('count', array('conditions'=>array('sender_id'=>$user_id, 'status >'=>STATUS_PENDING)));
+		$sharesamount_a = $this->CampaignResult->find('first', array('conditions'=>array('sender_id'=>$user_id, 'status >'=>STATUS_SHARED), 'fields'=>array('sum(coupon_value) AS sharesamount')));
+
+		if(!is_null($sharesamount_a[0]['sharesamount']))
+		$sharesamount = $sharesamount_a[0]['sharesamount'];
 
 		$lat = '41.8826374'; $long = '-87.6239217'; $radius = 1;
 		App::uses('Map', 'Maps.Model');
@@ -220,7 +249,9 @@ class AppCampaignsController extends CampaignsAppController {
 		
 		//$locations_count = count($locations);
 		
-		$this->set(compact('usable_count', 'locations_count'));
+		$this->set(compact('user', 'usable_count', 'locations_count', 'sharescount', 'sharesamount'));
+		
+		$this->render();
 	}
 }
 
