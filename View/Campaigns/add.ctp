@@ -6,7 +6,8 @@
 	<?php echo $this->Form->input('Campaign.start', array('label' => 'Start Date', 'type' => 'datetimepicker', 'value' => date('Y-m-d h:i:s', strtotime('+30 days')))); ?>
 	<?php echo $this->Form->input('Campaign.expire', array('label' => 'Expiration Date', 'type' => 'datetimepicker', 'value' => date('Y-m-d h:i:s', strtotime('+30 days')))); ?>
 
-	<?php echo $this->Form->input('Campaign.data.max', array('type' => 'text')); ?>
+	<?php //echo $this->Form->input('Campaign.data.max', array('type' => 'text')); ?>
+	<?php echo $this->Form->input('Campaign.data.max', array('options' => averages(), 'label'=>'Average')); ?>
 
 	<hr />
 

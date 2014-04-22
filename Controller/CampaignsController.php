@@ -37,9 +37,9 @@ class AppCampaignsController extends CampaignsAppController {
 				$this->CampaignResult->id = $voucher['CampaignResult']['id'];
 				$this->CampaignResult->save(array('recepient_id'=>$user_id, 'status'=>STATUS_USABLE));
 				//Make the parent voucher as "Available" for the sharer
-				if(!is_null($voucher['CampaignResult']['parent_id']))	{				
+				if(!is_null($voucher['CampaignResult']['parent_id']))	{
 					$this->CampaignResult->id = $voucher['CampaignResult']['parent_id'];
-					$this->CampaignResult->save(array('status'=>STATUS_SHARED, 'sender_id'=>$user_id));
+					$this->CampaignResult->save(array('status'=>STATUS_USABLE, 'sender_id'=>$user_id));
 				}
 			}
 		}
@@ -65,7 +65,7 @@ class AppCampaignsController extends CampaignsAppController {
 		
 		$this->loadModel('Campaigns.CampaignResult');
 		
-		//$this->__processVouchers();
+		$this->__processVouchers();
 		
 		foreach($campaigns as $i=>$campaign)	{
 			$campaign_id = $campaign['Campaign']['id'];
@@ -234,8 +234,9 @@ class AppCampaignsController extends CampaignsAppController {
 		$user = $this->Session->read('Auth.User');
 		
 		$usable_count = $this->CampaignResult->find('count', array('conditions'=>array('recepient_id'=>$user_id, 'status'=>STATUS_USABLE)));		
-		$sharescount = $this->CampaignResult->find('count', array('conditions'=>array('sender_id'=>$user_id, 'status >'=>STATUS_PENDING)));
-		$sharesamount_a = $this->CampaignResult->find('first', array('conditions'=>array('sender_id'=>$user_id, 'status >'=>STATUS_SHARED), 'fields'=>array('sum(coupon_value) AS sharesamount')));
+
+		$sharescount = $this->CampaignResult->find('count', array('conditions'=>array('sender_id'=>$user_id)));
+		$sharesamount_a = $this->CampaignResult->find('first', array('conditions'=>array('sender_id'=>$user_id), 'fields'=>array('sum(coupon_value) AS sharesamount')));
 
 		if(!is_null($sharesamount_a[0]['sharesamount']))
 		$sharesamount = $sharesamount_a[0]['sharesamount'];
@@ -246,6 +247,9 @@ class AppCampaignsController extends CampaignsAppController {
 		$locations = Set::extract('/Map/foreign_key', $Map->findLocation($lat, $long, $radius));
 		
 		$locations_count = $this->Campaign->find('count', array('conditions'=>array('Campaign.id'=>$locations)));
+		
+		//debug($sharescount);
+		//debug($sharesamount_a);
 		
 		//$locations_count = count($locations);
 		

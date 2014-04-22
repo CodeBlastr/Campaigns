@@ -91,6 +91,8 @@ class Campaign extends CampaignsAppModel {
 	public function afterFind($results = array(), $primary = false) {
 		for ($i=0; $i < count($results); $i++) {
 			$results[$i][$this->alias]['data'] = unserialize($results[$i][$this->alias]['data']);
+			if(isset($results[$i][$this->alias]['data']['max']))
+			$results[$i][$this->alias]['data']['max'] = $results[$i][$this->alias]['data']['max'] + 0;
 		}
 		return parent::afterFind($results, $primary);
 	}

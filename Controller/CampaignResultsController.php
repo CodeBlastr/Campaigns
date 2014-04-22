@@ -36,7 +36,9 @@ class CampaignResultsController extends CampaignsAppController {
  	'redemption_swipe',
  	'redemption_swipe_confirm',
  	'update',
- 	'home'
+ 	'home',
+	'uploadfile',
+	'giftycount'
 	);
  	 
 /**
@@ -78,47 +80,6 @@ class CampaignResultsController extends CampaignsAppController {
 		App::import('Lib', 'Facebook.FB');		
 		$FB = new FB();
 		
-		//debug($fbfriends);
-		//$ret_obj = $FB->api('/me/outbox');
-		
-		//$fbfriends = $FB->api("/me/friends");		
-		
-		//$friendList = json_decode($ret_obj);
-		
-		if($this->request->is('post'))	{
-			
-			debug($this->request->data);
-			
-			$fb_tos = $this->request->data['fbfriend'];
-			
-			//exit;
-			
-			
-			$id = $this->request->data['CampaignResult']['id'];
-			$feed = array(
-					'link' => Router::url(array('controller'=>'campaign_results', 'action'=>'claim', base64_encode($id)), true),
-					'message' => 'This is how it is coming Richard'
-			 );
-			if($this->request->data['CampaignResult']['imagefile']['error']==0)	{
-				//pr("uploading");
-				if(move_uploaded_file($this->request->data['CampaignResult']['imagefile']['tmp_name'], $upload_dir . DS . $this->request->data['CampaignResult']['imagefile']['name']))	{
-					$picture = Router::url('/tmp/' . $this->request->data['CampaignResult']['imagefile']['name'], true);
-				}
-			}
-			if($picture)	{
-				$feed['picture'] = $picture;
-			}
-			
-			foreach($fb_tos as $friend_id)	{
-					$ret_obj = $FB->api('/'.$friend_id.'/feed', 'POST', $feed);
-				  
-				 debug($ret_obj);
-		  }
-		  
-		  exit;
-			//pr($feed);
-		}
-		
 		if($this->Session->read('Facebook.Friends'))	{
 			$fbfriends = $this->Session->read('Facebook.Friends');
 		}	else	{
@@ -126,20 +87,9 @@ class CampaignResultsController extends CampaignsAppController {
 			$this->Session->write('Facebook.Friends', $fbfriends);
 		}
 		
+		$fbfinfo = $FB->api("/100004013502506");
 
-		
-		//$FB = FB::api('/me');
-		//$FBME = $FB->api('/me');
-		
-		//debug($FBME);
-		//$FacebookApi = new FB();
-		//$FBME = $FacebookApi->api('/me/photos');
-		//debug($FB);
-		
-		/*graph.facebook.com
-  /{user-id}/feed?
-    message={message}&
-    access_token={access-token}*/
+		//debug($fbfriends);
 		
     //$ret_obj = $FB->api('/me/friendlists');
     
@@ -178,12 +128,13 @@ class CampaignResultsController extends CampaignsAppController {
 		$this->CampaignResult->contain(array('Campaign', 'Creator'));
 		//$campaign_result = $this->CampaignResult->find('first', array('conditions'=>array('CampaignResult.creator_id'=>$user_id, 'CampaignResult.campaign_id'=>$campaign_id)));
 		
-		$campaign_result = $this->CampaignResult->find('first',  array('conditions'=>array('CampaignResult.creator_id'=>$user_id, 'CampaignResult.id'=>$id)));
-		//debug($campaign_result);
+		$campaign_result = $this->CampaignResult->find('first',  array('conditions'=>array('CampaignResult.id'=>$id)));
+		//debug($campaign_result);'CampaignResult.creator_id'=>$user_id, 
 		$campaign_id = $campaign_result['CampaignResult']['campaign_id'];
 		
 		//get a list of fb user with whom this user has shared a coupon for this campaign already and filter those fb id fs out from possible recipients
 		$fbsharedwith = $this->CampaignResult->find('all', array('conditions'=>array('CampaignResult.campaign_id'=>$campaign_id, 'sender_id'=>$user_id, 'CampaignResult.recepient_fbid IS NOT NULL'), 'fields'=>array('CampaignResult.recepient_fbid')));
+		//debug($fbsharedwith);
 		if(isset($fbfriends['data']) && count($fbfriends['data'])>0)	{
 			asort($fbfriends['data']);
 			foreach($fbfriends['data'] as $i=>$data)	{
@@ -196,6 +147,7 @@ class CampaignResultsController extends CampaignsAppController {
 				}
 			}
 		}
+		//debug($fbfriends);
 		$this->set(compact('campaign_result', 'facebook_id', 'fbfriends'));
 		
 	}
@@ -352,17 +304,37 @@ class CampaignResultsController extends CampaignsAppController {
 	}
 	
 	public function vouchers($action='received') {
+		
+		App::import('Lib', 'Facebook.FB');		
+		$FB = new FB();		
+		//$fbfinfo = $FB->api("/100004013502506", array('name'));		
+		//debug($fbfinfo);
 
 		$user_id = $this->Session->read('Auth.User.id');
 		
 		$fields_default = array('CampaignResult.id', 'Campaign.name', 'Campaign.owner_id', 'CampaignResult.created', 'CampaignResult.coupon_value', 'CampaignResult.status');
 		
+		$orderby_default = array('CampaignResult.modified DESC');
+		
 		//get pending vouchers ;  "Pending" means that it's been shared			
-		$fields_pending = array('Creator.full_name');		//additional field full_name of creator as there is no value in Sender or Recipient
+		$fields_pending = array('Creator.full_name', 'Sender.full_name');		//additional field full_name of creator as there is no value in Sender or Recipient
 		$conditions = array('CampaignResult.creator_id'=>$user_id, 'CampaignResult.parent_id IS NULL', 'CampaignResult.status'=>STATUS_SHARED); //
-		$this->CampaignResult->contain(array('Campaign','Creator'));
+		$this->CampaignResult->contain(array('Campaign','Creator', 'Sender'));
 		$fields = array_merge($fields_default, $fields_pending);
-		$vouchers_pending = $this->CampaignResult->find('all', array('conditions'=>$conditions, 'fields'=>$fields));
+		$vouchers_pending = $this->CampaignResult->find('all', array('conditions'=>$conditions, 'fields'=>$fields, 'order'=>$orderby_default));
+		
+		foreach($vouchers_pending as $k=>$voucher_pending)	{
+			if(is_null($voucher_pending['Sender']['full_name']))	{
+				$recepient_fbid = $this->CampaignResult->field('recepient_fbid', array("CampaignResult.parent_id"=>$voucher_pending['CampaignResult']['id']));
+				$fbfinfo = $FB->api("/$recepient_fbid", array('name'));
+				$vouchers_pending[$k]['Sender']['full_name'] = $fbfinfo['name'];
+			}
+		}
+		
+		//debug($vouchers_pending);
+		
+		//$fbfinfo = $FB->api("/100004013502506", array('name'));
+		//debug($vouchers_pending);
 		
 		//get pending vouchers ;  "Pending" means that it's been shared			
 		$fields_available = array('Sender.full_name', 'Creator.full_name');		//additional field full_name of creator as there is no value in Sender or Recipient
@@ -370,7 +342,7 @@ class CampaignResultsController extends CampaignsAppController {
 		$this->CampaignResult->contain(array('Campaign','Sender', 'Recepient', 'Creator'));
 		$fields = array_merge($fields_default, $fields_available);
 		//debug($fields);
-		$vouchers_available = $this->CampaignResult->find('all', array('conditions'=>$conditions, 'fields'=>$fields));
+		$vouchers_available = $this->CampaignResult->find('all', array('conditions'=>$conditions, 'fields'=>$fields, 'order'=>$orderby_default));
 		
 		//debug($vouchers_available);
 		
@@ -380,7 +352,7 @@ class CampaignResultsController extends CampaignsAppController {
 		$this->CampaignResult->contain(array('Campaign','Sender', 'Recepient', 'Creator'));
 		$fields = array_merge($fields_default, $fields_used);
 		//debug($fields);
-		$vouchers_used = $this->CampaignResult->find('all', array('conditions'=>$conditions, 'fields'=>$fields));
+		$vouchers_used = $this->CampaignResult->find('all', array('conditions'=>$conditions, 'fields'=>$fields, 'order'=>$orderby_default));
 		
 		//debug($vouchers_used);
 		
@@ -510,7 +482,7 @@ class CampaignResultsController extends CampaignsAppController {
 		//debug($this->request->data);		
 		$user_id = $this->Session->read('Auth.User.id');
 		$sent = false;
-		if($user_id)	{			
+		if($user_id)	{
 			if(isset($this->request->data['tos']))	{
 				$tos = explode(',', $this->request->data['tos']);
 				//debug($tos);
@@ -540,4 +512,24 @@ class CampaignResultsController extends CampaignsAppController {
 		}
 	}
 
+	function uploadfile()	{
+		$this->layout='ajax';
+		///opt/bitnami/apache2/htdocs/sites/sharendipity.buildrr.com/
+		$upload_dir = '/opt/bitnami/apache2/htdocs/sites/sharendipity.buildrr.com/Locale/View/webroot/upload/fbshare/';
+		$options = array('upload_dir'=>$upload_dir, 'upload_url'=>Router::url('/upload/fbshare/', true), 'script_url'=>Router::url('/campaigns/campaign_results/uploadfile/', true));
+		require_once(APP . 'Vendor' . DS . 'UploadHandler.php');
+
+		$upload_handler = new UploadHandler($options);
+		exit;
+	}
+	function giftycount()	{
+		$this->layout='ajax';
+		$user_id = $this->Session->read('Auth.User');		
+		echo $usable_count = $this->CampaignResult->find('count', array('conditions'=>array('recepient_id'=>$user_id, 'status'=>STATUS_USABLE)));
+		exit;
+	}
+	
+	function learnmore()	{
+		$this->render('learn-more');
+	}
 }
