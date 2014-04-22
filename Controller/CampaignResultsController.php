@@ -52,11 +52,17 @@ class CampaignResultsController extends CampaignsAppController {
 
 	//9459322447
 	public function edit($campaign_id, $result) {
-		$user_id = $this->Session->read('Auth.User.id');
 		$response = array();
-		$campaign_result = $this->CampaignResult->find('first', array('conditions' => array('creator_id' => $user_id, 'campaign_id' => $campaign_id, 'status' => STATUS_PENDING, 'parent_id IS NULL')));
+		$campaign_result = $this->CampaignResult->find('first', array(
+			'conditions' => array(
+				'creator_id' => $this->userId,
+				'campaign_id' => $campaign_id,
+				'status' => STATUS_PENDING,
+				'parent_id IS NULL'
+			)
+		));
 		if (!$campaign_result) {
-			$data['CampaignResult'] = array('creator_id' => $user_id, 'campaign_id' => $campaign_id, 'coupon_value' => $result);
+			$data['CampaignResult'] = array('creator_id' => $this->userId, 'campaign_id' => $campaign_id, 'coupon_value' => $result);
 			$this->CampaignResult->save($data);
 			$response['status'] = 'saved';
 			$response['campaign_result_id'] = $this->CampaignResult->id;
@@ -99,8 +105,8 @@ class CampaignResultsController extends CampaignsAppController {
 				'message' => 'This is how it is coming Richard'
 			);
 			if ($this->request->data['CampaignResult']['imagefile']['error'] == 0) {
-				//pr("uploading");
-				if (move_uploaded_file($this->request->data['CampaignResult']['imagefile']['tmp_name'], $upload_dir . DS . $this->request->data['CampaignResult']['imagefile']['name'])) {
+				$uploadedFileMoved = move_uploaded_file($this->request->data['CampaignResult']['imagefile']['tmp_name'], $upload_dir . DS . $this->request->data['CampaignResult']['imagefile']['name']);
+				if ($uploadedFileMoved) {
 					$picture = Router::url('/tmp/' . $this->request->data['CampaignResult']['imagefile']['name'], true);
 				}
 			}
@@ -115,7 +121,6 @@ class CampaignResultsController extends CampaignsAppController {
 			}
 
 			exit;
-			//pr($feed);
 		}
 
 		if ($this->Session->read('Facebook.Friends')) {
@@ -314,13 +319,11 @@ class CampaignResultsController extends CampaignsAppController {
 
 	public function vouchers($action = 'received') {
 
-		$user_id = $this->Session->read('Auth.User.id');
-
 		$fields_default = array('CampaignResult.id', 'Campaign.name', 'Campaign.owner_id', 'CampaignResult.created', 'CampaignResult.coupon_value', 'CampaignResult.status');
 
 		$vouchers_pending = $this->CampaignResult->find('all', array(
 			'conditions' => array(
-				'CampaignResult.creator_id' => $user_id,
+				'CampaignResult.creator_id' => $this->userId,
 				'CampaignResult.parent_id IS NULL',
 				'CampaignResult.status' => STATUS_SHARED
 			),
@@ -330,7 +333,7 @@ class CampaignResultsController extends CampaignsAppController {
 
 		$vouchers_available = $this->CampaignResult->find('all', array(
 			'conditions' => array(
-				'CampaignResult.recepient_id' => $user_id,
+				'CampaignResult.recepient_id' => $this->userId,
 				'CampaignResult.status' => STATUS_USABLE
 			),
 			'fields' => array_merge($fields_default, array('Sender.full_name', 'Creator.full_name')),
@@ -339,7 +342,7 @@ class CampaignResultsController extends CampaignsAppController {
 
 		$vouchers_used = $this->CampaignResult->find('all', array(
 			'conditions' => array(
-				'CampaignResult.recepient_id' => $user_id,
+				'CampaignResult.recepient_id' => $this->userId,
 				'CampaignResult.status' => STATUS_USED
 			),
 			'fields' => array_merge($fields_default, array('Sender.full_name', 'Creator.full_name')),
@@ -361,8 +364,6 @@ class CampaignResultsController extends CampaignsAppController {
 
 	public function redemption($id, $swipe = null, $confirm = null) {
 
-		$user_id = $this->Session->read('Auth.User.id');
-
 		$redeemed = false;
 		$giftyType = 'referral';
 
@@ -379,7 +380,7 @@ class CampaignResultsController extends CampaignsAppController {
 
 		$voucher = $this->CampaignResult->read();
 
-		if ($voucher['CampaignResult']['recepient_id'] != $user_id) {
+		if ($voucher['CampaignResult']['recepient_id'] != $this->userId) {
 			throw new NotFoundException(__('Invalid User'));
 		}
 
@@ -422,7 +423,6 @@ class CampaignResultsController extends CampaignsAppController {
 		if (!$this->CampaignResult->exists()) {
 			throw new NotFoundException(__('Invalid'));
 		}
-		$user_id = $this->Session->read('Auth.User.id');
 		//$conditions = array('CampaignResult.id'=>$coupan_id);
 		//,'CampaignResult.recepient_id'=>$user_id,'CampaignResult.status'=>STATUS_USABLE
 		$this->CampaignResult->contain(array('Campaign', 'Recepient'));
@@ -435,8 +435,7 @@ class CampaignResultsController extends CampaignsAppController {
 		if (!$this->CampaignResult->exists()) {
 			throw new NotFoundException(__('Invalid'));
 		}
-		$user_id = $this->Session->read('Auth.User.id');
-		if ($user_id) {
+		if ($this->userId) {
 			$this->CampaignResult->id = $id;
 			$data = array('status' => STATUS_USED);
 			$this->CampaignResult->save($data);
@@ -447,9 +446,8 @@ class CampaignResultsController extends CampaignsAppController {
 	}
 
 	public function update($campaign_result_id, $status) {
-		$user_id = $this->Session->read('Auth.User.id');
 		$sent = false;
-		if ($user_id) {
+		if ($this->userId) {
 			if (isset($this->request->data['tos'])) {
 				$tos = explode(',', $this->request->data['tos']);
 				if (count($tos) > 0) {
@@ -457,10 +455,25 @@ class CampaignResultsController extends CampaignsAppController {
 					$campaign = $this->CampaignResult->read(array('campaign_id', 'coupon_value'));
 					$campaign_id = $campaign['CampaignResult']['campaign_id'];
 					foreach ($tos as $fbid) {
-						$count = $this->CampaignResult->find('count', array('conditions' => array('campaign_id' => $campaign_id, 'sender_id' => $user_id, 'recepient_fbid' => $fbid))); //optional check whether this user has send request for this user for this campaign earlier
+						//optional check whether this user has send request for this user for this campaign earlier
+						$count = $this->CampaignResult->find('count', array(
+							'conditions' => array(
+								'campaign_id' => $campaign_id,
+								'sender_id' => $this->userId,
+								'recepient_fbid' => $fbid
+							)
+						));
 						if (!$count > 0) {
 							$this->CampaignResult->id = null;
-							$data = array('parent_id' => $campaign_result_id, 'campaign_id' => $campaign['CampaignResult']['campaign_id'], 'status' => STATUS_PENDING, 'sender_id' => $user_id, 'recepient_fbid' => $fbid, 'coupon_value' => $campaign['CampaignResult']['coupon_value']); //sender & recipient is self
+							//sender & recipient is self
+							$data = array(
+								'parent_id' => $campaign_result_id,
+								'campaign_id' => $campaign['CampaignResult']['campaign_id'],
+								'status' => STATUS_PENDING,
+								'sender_id' => $this->userId,
+								'recepient_fbid' => $fbid,
+								'coupon_value' => $campaign['CampaignResult']['coupon_value']
+							);
 							$this->CampaignResult->save($data);
 							$sent = true;
 						}
@@ -469,7 +482,7 @@ class CampaignResultsController extends CampaignsAppController {
 			}
 			if ($sent) {
 				$this->CampaignResult->id = $campaign_result_id;
-				$data = array('status' => STATUS_SHARED, 'recepient_id' => $user_id); //sender & recipient is self
+				$data = array('status' => STATUS_SHARED, 'recepient_id' => $this->userId); //sender & recipient is self
 				$this->CampaignResult->save($data);
 			}
 			exit;
