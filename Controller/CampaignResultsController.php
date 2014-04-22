@@ -371,10 +371,6 @@ class CampaignResultsController extends CampaignsAppController {
 			$redeemed = true;
 		}
 
-//ini_set('display_startup_errors',1);
-//ini_set('display_errors',1);
-//error_reporting(-1);
-
 		$this->CampaignResult->id = $id;
 		if (!$this->CampaignResult->exists()) {
 			throw new NotFoundException(__('Invalid'));
@@ -388,7 +384,7 @@ class CampaignResultsController extends CampaignsAppController {
 			throw new NotFoundException(__('Invalid User'));
 		}
 
-		if (!is_null($swipe) & !is_null($confirm)) {
+		if (!is_null($swipe) && !is_null($confirm)) {
 			if ($this->request->is('post')) {
 				$id = $this->request->data['CampaignResult']['id'];
 				$code = $this->request->data['CampaignResult']['code'];
