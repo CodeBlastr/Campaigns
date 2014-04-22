@@ -6,7 +6,7 @@ App::uses('CampaignsAppModel', 'Campaigns.Model');
  * @property Owner $Owner
  */
 class Campaign extends CampaignsAppModel {
-		
+
 	public $name = 'Campaign';
 /**
  * Display field
@@ -14,7 +14,7 @@ class Campaign extends CampaignsAppModel {
  * @var string
  */
 	public $displayField = 'name';
-		
+
 /**
  * Validation rules
  *
@@ -49,10 +49,10 @@ class Campaign extends CampaignsAppModel {
 			'order' => ''
 		)
 	);
-	
+
 /**
  * Constructor
- * 
+ *
  */
 	public function __construct($id = false, $table = null, $ds = null) {
 		if (CakePlugin::loaded('Maps')) {
@@ -89,8 +89,10 @@ class Campaign extends CampaignsAppModel {
  * @return array
  */
 	public function afterFind($results = array(), $primary = false) {
-		for ($i=0; $i < count($results); $i++) {
-			$results[$i][$this->alias]['data'] = unserialize($results[$i][$this->alias]['data']);
+		if ($primary) {
+			for ($i=0; $i < count($results); $i++) {
+				$results[$i][$this->alias]['data'] = unserialize($results[$i][$this->alias]['data']);
+			}
 		}
 		return parent::afterFind($results, $primary);
 	}
