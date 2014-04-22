@@ -371,12 +371,16 @@ class CampaignResultsController extends CampaignsAppController {
 			$redeemed = true;
 		}
 
+//ini_set('display_startup_errors',1);
+//ini_set('display_errors',1);
+//error_reporting(-1);
+
 		$this->CampaignResult->id = $id;
 		if (!$this->CampaignResult->exists()) {
 			throw new NotFoundException(__('Invalid'));
 		}
 
-		$this->CampaignResult->contain(array('Campaign', 'Recepient', 'Sender'));
+		$this->CampaignResult->contain(array('Campaign'=>'Owner', 'Recepient', 'Sender'));
 
 		$voucher = $this->CampaignResult->read();
 
@@ -414,7 +418,44 @@ class CampaignResultsController extends CampaignsAppController {
 		//$this->CampaignResult->Campaign->contain(array('Owner'));
 		//$voucher = $this->CampaignResult->read();
 
-		$this->set(compact('voucher', 'swipe', 'confirm', 'incorrectcode', 'redeemed', 'giftyType'));
+		/**
+		 * determine voucher id
+		 * owners initials, merchant number (order each merchant signed up) and gifty number.
+		 * Example owner: Andrew Campbell, 5th merchant to sign on, voucher number: 3. AC5-3
+		 */
+		$ownersInitials = $voucher['Campaign']['Owner']['first_name'][0] . $voucher['Campaign']['Owner']['last_name'][0];
+
+		$merchants = $this->CampaignResult->Campaign->Owner->query(""
+				. "SELECT"
+				. " @rownum:=@rownum+1 'rank', Owner.id, Owner.created"
+				. " FROM `users` AS Owner, (SELECT @rownum:=0) r"
+				. " WHERE Owner.user_role_id = '6'"
+				. " ORDER BY created ASC;");
+		foreach ($merchants as $merchant) {
+			if ($merchant['Owner']['id'] === $voucher['Campaign']['Owner']['id']) {
+				$merchantNumber = $merchant[0]['rank'];
+				break;
+			}
+		}
+		if ($merchantNumber === null) {
+			$merchantNumber = 0; // campaign owner is not a Merchant user_role.  Likely is the admin.
+		}
+
+		$giftys = $this->CampaignResult->query(""
+				. "SELECT"
+				. " @rownum:=@rownum+1 'rank', CampaignResult.id, CampaignResult.created"
+				. " FROM `campaign_results` AS CampaignResult, (SELECT @rownum:=0) r"
+				. " WHERE CampaignResult.campaign_id = '{$voucher['Campaign']['id']}'"
+				. " ORDER BY created ASC;");
+		foreach ($giftys as $gifty) {
+			if ($gifty['CampaignResult']['id'] === $voucher['CampaignResult']['id']) {
+				$giftyNumber = $gifty[0]['rank'];
+				break;
+			}
+		}
+		$voucherId = $ownersInitials . $merchantNumber . '-' . $giftyNumber;
+
+		$this->set(compact('voucher', 'swipe', 'confirm', 'incorrectcode', 'redeemed', 'giftyType', 'voucherId'));
 		//$campaign_result = $this->CampaignResult->find('all', array('conditions'=>$conditions));
 	}
 
