@@ -10,14 +10,12 @@ App::uses('CampaignsAppController', 'Campaigns.Controller');
 class CampaignResultsController extends CampaignsAppController {
 
 /**
- * Uses
  *
  * @var array
  */
 	public $uses = 'Campaigns.CampaignResult';
 
 /**
- * Components
  *
  * @var array
  */
@@ -31,21 +29,24 @@ class CampaignResultsController extends CampaignsAppController {
 		'Facebook.Connect'
 	);
 
- public $allowedActions = array(
- 	'result',
- 	'claim',
- 	'vouchers',
- 	'redemption',
- 	'redemption_swipe',
- 	'redemption_swipe_confirm',
- 	'update',
- 	'home',
-	'uploadfile',
-	'giftycount'
+/**
+ *
+ * @var array
+ */
+	public $allowedActions = array(
+		'result',
+		'claim',
+		'vouchers',
+		'redemption',
+		'redemption_swipe',
+		'redemption_swipe_confirm',
+		'update',
+		'home',
+		'uploadfile',
+		'giftycount'
 	);
 
 /**
- * index method
  *
  * @return void
  */
@@ -79,7 +80,8 @@ class CampaignResultsController extends CampaignsAppController {
 	}
 
 /**
- * This method is used to show the share page after user has spinned the wheel, may be there need to add a page between the spin page and results/share page
+ * This method is used to show the share page after user has spun the wheel,
+ * may be there need to add a page between the spin page and results/share page
  * @return void
  */
 	public function result($id = null) {
@@ -88,7 +90,7 @@ class CampaignResultsController extends CampaignsAppController {
 		App::import('Lib', 'Facebook.FB');
 		$FB = new FB();
 
-		if($this->Session->read('Facebook.Friends'))	{
+		if ($this->Session->read('Facebook.Friends')) {
 			$fbfriends = $this->Session->read('Facebook.Friends');
 		} else {
 			$fbfriends = $FB->api("/me/friends");
@@ -96,7 +98,7 @@ class CampaignResultsController extends CampaignsAppController {
 		}
 		$fbfinfo = $FB->api("/100004013502506");
 
-    //$ret_obj = $FB->api('/me/friendlists');
+		//$ret_obj = $FB->api('/me/friendlists');
 		/*
 		  $ret_obj = $FB->api('/100004388857579/feed', 'POST',
 		  array(
@@ -121,18 +123,21 @@ class CampaignResultsController extends CampaignsAppController {
 
 		$user_id = $this->Session->read('Auth.User.id');
 		$this->CampaignResult->contain(array('Campaign' => 'Owner', 'Creator'));
-		//$campaign_result = $this->CampaignResult->find('first', array('conditions'=>array('CampaignResult.creator_id'=>$user_id, 'CampaignResult.campaign_id'=>$campaign_id)));
-
-		$campaign_result = $this->CampaignResult->find('first',  array('conditions'=>array('CampaignResult.id'=>$id)));
-		//debug($campaign_result);'CampaignResult.creator_id'=>$user_id,
+		$campaign_result = $this->CampaignResult->find('first', array('conditions' => array('CampaignResult.id' => $id)));
 
 		$campaign_id = $campaign_result['CampaignResult']['campaign_id'];
 
 		//get a list of fb user with whom this user has shared a coupon for this campaign already and filter those fb id fs out from possible recipients
-		$fbsharedwith = $this->CampaignResult->find('all', array('conditions'=>array('CampaignResult.campaign_id'=>$campaign_id, 'sender_id'=>$user_id, 'CampaignResult.recepient_fbid IS NOT NULL'), 'fields'=>array('CampaignResult.recepient_fbid')));
-		//debug($fbsharedwith);
-		if(isset($fbfriends['data']) && count($fbfriends['data'])>0)	{
+		$fbsharedwith = $this->CampaignResult->find('all', array(
+			'conditions' => array(
+				'CampaignResult.campaign_id' => $campaign_id,
+				'sender_id' => $user_id,
+				'CampaignResult.recepient_fbid IS NOT NULL'
+			),
+			'fields' => array('CampaignResult.recepient_fbid')
+		));
 
+		if (isset($fbfriends['data']) && count($fbfriends['data']) > 0) {
 			asort($fbfriends['data']);
 			foreach ($fbfriends['data'] as $i => $data) {
 				if ($fbsharedwith) {
@@ -144,17 +149,19 @@ class CampaignResultsController extends CampaignsAppController {
 				}
 			}
 		}
-		//debug($fbfriends);
+
 		$this->set(compact('campaign_result', 'facebook_id', 'fbfriends'));
 	}
 
 /**
- * claim method
- * This method is supposed to be clicked by a facebook user. This link is sent to user's fb message box as a gift coupon and user click on this link to claim their reward.
-
-	  Completing the redemption by user a gift coupon and reward points or both are awarded to the sender. This link can be clicked by multiple users so this need to be coded in a manner so that one user can redeem their coupon only once. Probaly need to track the fb user id when creating new account for them.
-
-	  Also this method is called by the facebook API Open Graph Object url parse. So need to differentiate the call. Using HTTP_USER_AGENT to identify the call from FB
+ * This method is supposed to be clicked by a facebook user.
+ * This link is sent to user's fb message box as a gift coupon and user click on this link to claim their reward.
+ * Completing the redemption by user a gift coupon and reward points or both are awarded to the sender.
+ * This link can be clicked by multiple users so this need to be coded in a manner so that one user can redeem their coupon only once.
+ * Probaly need to track the fb user id when creating new account for them.
+ * Also this method is called by the facebook API Open Graph Object url parse.
+ * So need to differentiate the call. Using HTTP_USER_AGENT to identify the call from FB
+ *
  * @return void
  */
 	function claim($resultId = '') { //
@@ -259,7 +266,6 @@ class CampaignResultsController extends CampaignsAppController {
 		//$this->set('campaign', $campaign = $this->Campaign->read());
 		$campaign = $campaign_result;
 		$meta_description = $campaign_result['Campaign']['description'];
-		//$this->page_title = $campaign_result['Campaign']['name'];
 		$this->set('title_for_layout', $campaign_result['Campaign']['name']);
 
 		$this->set(compact('campaign_result', 'facebook_id', 'meta_description', 'fbmetas', 'already_redeemed', 'campaign', 'already_redeemed'));
@@ -269,11 +275,18 @@ class CampaignResultsController extends CampaignsAppController {
 		}
 	}
 
+/**
+ *
+ */
 	public function giftcouponshared() {
 
 	}
 
-	public function vouchers($action='received') {
+/**
+ *
+ * @param string $action
+ */
+	public function vouchers($action = 'received') {
 
 		App::import('Lib', 'Facebook.FB');
 		$FB = new FB();
@@ -323,6 +336,13 @@ class CampaignResultsController extends CampaignsAppController {
 		$this->render('vouchers_tabbed');
 	}
 
+/**
+ *
+ * @param type $id
+ * @param type $swipe
+ * @param type $confirm
+ * @throws NotFoundException
+ */
 	public function redemption($id, $swipe = null, $confirm = null) {
 
 		$redeemed = false;
@@ -337,7 +357,7 @@ class CampaignResultsController extends CampaignsAppController {
 			throw new NotFoundException(__('Invalid'));
 		}
 
-		$this->CampaignResult->contain(array('Campaign'=>'Owner', 'Recepient', 'Sender'));
+		$this->CampaignResult->contain(array('Campaign' => 'Owner', 'Recepient', 'Sender'));
 
 		$voucher = $this->CampaignResult->read();
 
@@ -416,6 +436,11 @@ class CampaignResultsController extends CampaignsAppController {
 		//$campaign_result = $this->CampaignResult->find('all', array('conditions'=>$conditions));
 	}
 
+/**
+ *
+ * @param type $id
+ * @throws NotFoundException
+ */
 	public function redemption_swipe($id) {
 		$this->CampaignResult->id = $id;
 		if (!$this->CampaignResult->exists()) {
@@ -428,6 +453,11 @@ class CampaignResultsController extends CampaignsAppController {
 		$this->set(compact('voucher'));
 	}
 
+/**
+ *
+ * @param type $id
+ * @throws NotFoundException
+ */
 	public function redemption_swipe_confirm($id) {
 		$this->CampaignResult->id = $id;
 		if (!$this->CampaignResult->exists()) {
@@ -443,6 +473,11 @@ class CampaignResultsController extends CampaignsAppController {
 		}
 	}
 
+/**
+ *
+ * @param type $campaign_result_id
+ * @param type $status
+ */
 	public function update($campaign_result_id, $status) {
 		$sent = false;
 		if ($this->userId) {
@@ -487,24 +522,35 @@ class CampaignResultsController extends CampaignsAppController {
 		}
 	}
 
-	function uploadfile()	{
-		$this->layout='ajax';
+/**
+ *
+ */
+	function uploadfile() {
+		$this->layout = 'ajax';
 		///opt/bitnami/apache2/htdocs/sites/sharendipity.buildrr.com/
 		$upload_dir = '/opt/bitnami/apache2/htdocs/sites/sharendipity.buildrr.com/Locale/View/webroot/upload/fbshare/';
-		$options = array('upload_dir'=>$upload_dir, 'upload_url'=>Router::url('/upload/fbshare/', true), 'script_url'=>Router::url('/campaigns/campaign_results/uploadfile/', true));
+		$options = array('upload_dir' => $upload_dir, 'upload_url' => Router::url('/upload/fbshare/', true), 'script_url' => Router::url('/campaigns/campaign_results/uploadfile/', true));
 		require_once(APP . 'Vendor' . DS . 'UploadHandler.php');
 
 		$upload_handler = new UploadHandler($options);
 		exit;
 	}
-	function giftycount()	{
-		$this->layout='ajax';
+
+/**
+ *
+ */
+	function giftycount() {
+		$this->layout = 'ajax';
 		$user_id = $this->Session->read('Auth.User');
-		echo $usable_count = $this->CampaignResult->find('count', array('conditions'=>array('recepient_id'=>$user_id, 'status'=>STATUS_USABLE)));
+		echo $usable_count = $this->CampaignResult->find('count', array('conditions' => array('recepient_id' => $user_id, 'status' => STATUS_USABLE)));
 		exit;
 	}
 
-	function learnmore()	{
+/**
+ *
+ */
+	function learnmore() {
 		$this->render('learn-more');
 	}
+
 }
