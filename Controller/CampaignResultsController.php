@@ -87,7 +87,7 @@ class CampaignResultsController extends CampaignsAppController {
 
 		App::import('Lib', 'Facebook.FB');
 		$FB = new FB();
-		
+
 		if($this->Session->read('Facebook.Friends'))	{
 			$fbfriends = $this->Session->read('Facebook.Friends');
 		} else {
@@ -120,11 +120,11 @@ class CampaignResultsController extends CampaignsAppController {
 		}
 
 		$user_id = $this->Session->read('Auth.User.id');
-		$this->CampaignResult->contain(array('Campaign', 'Creator'));
+		$this->CampaignResult->contain(array('Campaign' => 'Owner', 'Creator'));
 		//$campaign_result = $this->CampaignResult->find('first', array('conditions'=>array('CampaignResult.creator_id'=>$user_id, 'CampaignResult.campaign_id'=>$campaign_id)));
-		
+
 		$campaign_result = $this->CampaignResult->find('first',  array('conditions'=>array('CampaignResult.id'=>$id)));
-		//debug($campaign_result);'CampaignResult.creator_id'=>$user_id, 
+		//debug($campaign_result);'CampaignResult.creator_id'=>$user_id,
 
 		$campaign_id = $campaign_result['CampaignResult']['campaign_id'];
 
@@ -270,14 +270,14 @@ class CampaignResultsController extends CampaignsAppController {
 	}
 
 	public function giftcouponshared() {
-		
+
 	}
-	
+
 	public function vouchers($action='received') {
-		
-		App::import('Lib', 'Facebook.FB');		
-		$FB = new FB();		
-		//$fbfinfo = $FB->api("/100004013502506", array('name'));		
+
+		App::import('Lib', 'Facebook.FB');
+		$FB = new FB();
+		//$fbfinfo = $FB->api("/100004013502506", array('name'));
 		//debug($fbfinfo);
 
 		$fields_default = array('CampaignResult.id', 'Campaign.name', 'Campaign.owner_id', 'CampaignResult.created', 'CampaignResult.coupon_value', 'CampaignResult.status');
@@ -499,11 +499,11 @@ class CampaignResultsController extends CampaignsAppController {
 	}
 	function giftycount()	{
 		$this->layout='ajax';
-		$user_id = $this->Session->read('Auth.User');		
+		$user_id = $this->Session->read('Auth.User');
 		echo $usable_count = $this->CampaignResult->find('count', array('conditions'=>array('recepient_id'=>$user_id, 'status'=>STATUS_USABLE)));
 		exit;
 	}
-	
+
 	function learnmore()	{
 		$this->render('learn-more');
 	}
