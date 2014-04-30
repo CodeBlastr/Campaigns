@@ -18,7 +18,7 @@
 				<?php echo $this->Html->link('View', array('action' => 'view', $campaign['Campaign']['id']), array('class' => 'btn btn-xs btn-primary')); ?>
 				<?php echo $this->Html->link('Edit', array('action' => 'edit', $campaign['Campaign']['id']), array('class' => 'btn btn-xs btn-primary')); ?>
 			</div>
-		</div>	
+		</div>
 		<?php endforeach; ?>
 	<?php else: ?>
 		<h4>No Results Found</h4>
@@ -33,7 +33,7 @@ $this->set('context_menu', array('menus' => array(
     array(
 		'heading' => 'Campaigns',
 		'items' => array(
-			$this->Html->link(__('Add'), array('admin' => true, 'controller' => 'classifieds', 'action' => 'add')),
+			$this->Html->link(__('Add'), array('admin' => true, 'action' => 'add')),
 			)
 		),
 	)));
