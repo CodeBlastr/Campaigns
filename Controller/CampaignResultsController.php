@@ -293,7 +293,7 @@ class CampaignResultsController extends CampaignsAppController {
 		//$fbfinfo = $FB->api("/100004013502506", array('name'));
 		//debug($fbfinfo);
 
-		$fields_default = array('CampaignResult.id', 'Campaign.name', 'Campaign.owner_id', 'CampaignResult.created', 'CampaignResult.coupon_value', 'CampaignResult.status');
+		$fields_default = array('CampaignResult.id', 'Campaign.name', 'Campaign.owner_id', 'CampaignResult.created', 'CampaignResult.modified', 'CampaignResult.coupon_value', 'CampaignResult.status');
 
 		$vouchers_pending = $this->CampaignResult->find('all', array(
 			'conditions' => array(
