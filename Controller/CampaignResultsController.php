@@ -499,7 +499,7 @@ class CampaignResultsController extends CampaignsAppController {
  */
 	function giftycount() {
 		$this->layout = 'ajax';
-		$user_id = $this->Session->read('Auth.User');
+		$user_id = $this->Session->read('Auth.User.id');
 		echo $usable_count = $this->CampaignResult->find('count', array('conditions' => array('recepient_id' => $user_id, 'status' => STATUS_USABLE)));
 		exit;
 	}
