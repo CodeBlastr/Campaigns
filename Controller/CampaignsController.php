@@ -149,13 +149,12 @@ class AppCampaignsController extends CampaignsAppController {
 		 }
 		$this->Campaign->contain(array('Owner'));
 
-		//$this->CampaignResult->query("delete from campaign_results where id='52fcf3f3-1a1c-4768-8aff-3af20ad25527'");
 		$user_id = $this->Session->read('Auth.User.id');
 		$campaign_result = $this->Campaign->CampaignResults->find('first', array('conditions'=>array('creator_id'=>$user_id, 'campaign_id'=>$id, 'status'=>STATUS_PENDING, 'parent_id IS NULL')));
 
 		$exists = $campaign_result ? 1 : 0;
 
-		if($exists) {
+		if ($exists) {
 			$this->redirect('/campaigns/campaign_results/result/'.$campaign_result['CampaignResult']['id']);
 		}
 

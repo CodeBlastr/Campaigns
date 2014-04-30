@@ -344,7 +344,7 @@ class CampaignResultsController extends CampaignsAppController {
  * @throws NotFoundException
  */
 	public function redemption($id, $swipe = null, $confirm = null) {
-		$this->helpers[] = 'Campaign';
+		$this->helpers[] = 'Campaigns.Campaign';
 
 		$redeemed = false;
 		$giftyType = 'referral';
