@@ -50,6 +50,10 @@ class Campaign extends CampaignsAppModel {
 		)
 	);
 
+	public $hasMany = array(
+		'CampaignResults'
+	);
+
 /**
  * Constructor
  *

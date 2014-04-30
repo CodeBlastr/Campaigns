@@ -6,7 +6,7 @@ App::uses('CampaignsAppModel', 'Campaigns.Model');
  * @property Owner $Owner
  */
 class CampaignResult extends CampaignsAppModel {
-		
+
 	public $name = 'CampaignResult';
 
 
@@ -38,10 +38,10 @@ class CampaignResult extends CampaignsAppModel {
 				'foreignKey' => 'recepient_id'
 			)
 	);
-	
+
 /**
  * Constructor
- * 
+ *
  */
 	// public function __construct($id = false, $table = null, $ds = null) {
 		// parent::__construct($id, $table, $ds);
