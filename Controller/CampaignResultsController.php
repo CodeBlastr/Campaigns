@@ -344,7 +344,6 @@ class CampaignResultsController extends CampaignsAppController {
  * @throws NotFoundException
  */
 	public function redemption($id, $swipe = null, $confirm = null) {
-		$this->helpers[] = 'Campaigns.Campaign';
 
 		$redeemed = false;
 		$giftyType = 'referral';
@@ -359,39 +358,33 @@ class CampaignResultsController extends CampaignsAppController {
 		}
 
 		$this->CampaignResult->contain(array('Campaign' => 'Owner', 'Recepient', 'Sender'));
-
 		$voucher = $this->CampaignResult->read();
 
 		if ($voucher['CampaignResult']['recepient_id'] != $this->userId) {
 			throw new NotFoundException(__('Invalid User'));
 		}
 
-		if (!is_null($swipe) && !is_null($confirm)) {
-			if ($this->request->is('post')) {
-				$id = $this->request->data['CampaignResult']['id'];
-				$code = $this->request->data['CampaignResult']['code'];
-				if (strtoupper($code) == "YES") {
-					//change the status of this gifty
-					$data = array('status' => STATUS_USED);
-					$this->CampaignResult->save($data);
+		if (!is_null($swipe) && !is_null($confirm) && $this->request->is('post')) {
+			if (strtoupper($this->request->data['CampaignResult']['code']) === "YES") {
+				//change the status of this gifty
+				$this->CampaignResult->save(array('status' => STATUS_USED));
 
-					//change the status for the sharer of this gifty, if is a child
-					if (!is_null($voucher['CampaignResult']['parent_id'])) {
-						$this->CampaignResult->id = $voucher['CampaignResult']['parent_id'];
-						$data = array('status' => STATUS_USABLE);
-						$this->CampaignResult->save($data);
-					} else {
-						$giftyType = 'reward';
-					}
-
-					$redeemed = true;
+				//change the status for the sharer of this gifty, if is a child
+				if (!is_null($voucher['CampaignResult']['parent_id'])) {
+					$this->CampaignResult->id = $voucher['CampaignResult']['parent_id'];
+					$this->CampaignResult->save(array('status' => STATUS_USABLE));
 				} else {
-					$incorrectcode = true;
+					$giftyType = 'reward';
 				}
+
+				$redeemed = true;
+			} else {
+				$incorrectcode = true;
 			}
 		}
 
 		$this->set(compact('voucher', 'swipe', 'confirm', 'incorrectcode', 'redeemed', 'giftyType'));
+		$this->helpers[] = 'Campaigns.Campaign';
 	}
 
 /**
