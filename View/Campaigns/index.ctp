@@ -12,11 +12,13 @@
 				<?php echo $campaign['Campaign']['city']; ?>, <?php echo $campaign['Campaign']['state']; ?>, <?php echo $campaign['Campaign']['zip']; ?>
 			</div>
 			<div class="col-md-3">
-				Max <?php echo ZuhaInflector::pricify($campaign['Campaign']['data']['max'], array('currency' => 'USD')); ?>
+				Avg <?php echo ZuhaInflector::pricify($campaign['Campaign']['data']['max'], array('currency' => 'USD')); ?>
 			</div>
 			<div class="col-md-3">
-				<?php echo $this->Html->link('View', array('action' => 'view', $campaign['Campaign']['id']), array('class' => 'btn btn-xs btn-primary')); ?>
-				<?php echo $this->Html->link('Edit', array('action' => 'edit', $campaign['Campaign']['id']), array('class' => 'btn btn-xs btn-primary')); ?>
+				<?php #echo $this->Html->link('View', array('action' => 'view', $campaign['Campaign']['id']), array('class' => 'btn btn-xs btn-default')); ?>
+				<?php echo $this->Html->link('Edit', array('action' => 'edit', $campaign['Campaign']['id']), array('class' => 'btn btn-sm btn-primary')); ?>
+				&nbsp;
+				<?php echo $this->Html->link('Stop', array('action' => 'stop', $campaign['Campaign']['id']), array('class' => 'btn btn-xs btn-danger')); ?>
 			</div>
 		</div>
 		<?php endforeach; ?>
