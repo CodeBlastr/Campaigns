@@ -1,6 +1,12 @@
 <div class="campaigns form">
 	<?php echo $this->Form->create('Campaign', array('type' => 'file')); ?>
-	<?php echo $this->Form->hidden('Campaign.owner_id', array('value' => $__userId)); ?>
+	<?php
+	if (isset($merchants)) {
+		echo $this->Form->input('Campaign.owner_id', array('options' => $merchants));
+	} else {
+		echo $this->Form->hidden('Campaign.owner_id', array('value' => $__userId));
+	}
+	?>
 	<?php echo $this->Form->input('Campaign.name', array('type' => 'text')); ?>
 	<?php echo $this->Form->input('Campaign.description', array('type' => 'text')); ?>
 	<?php echo $this->Form->input('Campaign.start', array('label' => 'Start Date', 'type' => 'datetimepicker', 'value' => date('Y-m-d h:i:s', strtotime('+30 days')))); ?>

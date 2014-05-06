@@ -152,7 +152,7 @@ class AppCampaignsController extends CampaignsAppController {
 		$exists = $campaign_result ? 1 : 0;
 
 		if ($exists) {
-			$this->redirect('/campaigns/campaign_results/result/' . $campaign_result['CampaignResult']['id']);
+			//$this->redirect('/campaigns/campaign_results/result/' . $campaign_result['CampaignResult']['id']);
 		}
 
 		$this->set('campaign', $campaign = $this->Campaign->read());
@@ -167,10 +167,18 @@ class AppCampaignsController extends CampaignsAppController {
 		if ($this->request->is('post')) {
 			$this->Campaign->create();
 			if ($this->Campaign->save($this->request->data)) {
-				$this->Session->setFlash(__('Saved'));
+				$this->Session->setFlash(__('Saved'), 'flash_success');
 				$this->redirect(array('action' => 'index'));
 			} else {
-				$this->Session->setFlash(__('Could not be saved. Please, try again.'));
+				$this->Session->setFlash(__('Could not be saved. Please, try again.'), 'flash_warning');
+			}
+		}
+
+		if ($this->request->is('get')) {
+			if ($this->Session->read('Auth.User.user_role_id') == '1') {
+				$this->set('merchants', $this->Campaign->Owner->find('list', array(
+					'conditions' => array('Owner.user_role_id' => '6')
+				)));
 			}
 		}
 	}
@@ -187,10 +195,10 @@ class AppCampaignsController extends CampaignsAppController {
 		}
 		if ($this->request->is('post') || $this->request->is('put')) {
 			if ($this->Campaign->save($this->request->data)) {
-				$this->Session->setFlash(__('Saved'));
+				$this->Session->setFlash(__('Saved'), 'flash_success');
 				$this->redirect(array('action' => 'index'));
 			} else {
-				$this->Session->setFlash(__('Could not be saved. Please, try again.'));
+				$this->Session->setFlash(__('Could not be saved. Please, try again.'), 'flash_warning');
 			}
 		}
 		$this->request->data = $this->Campaign->read(null, $id);
@@ -210,10 +218,10 @@ class AppCampaignsController extends CampaignsAppController {
 			throw new NotFoundException(__('Invalid'));
 		}
 		if ($this->Campaign->delete()) {
-			$this->Session->setFlash(__('Deleted'));
+			$this->Session->setFlash(__('Deleted'), 'flash_success');
 			$this->redirect(array('action' => 'index'));
 		}
-		$this->Session->setFlash(__('Not deleted'));
+		$this->Session->setFlash(__('Not deleted'), 'flash_warning');
 		$this->redirect(array('action' => 'index'));
 	}
 
