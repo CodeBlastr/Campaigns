@@ -51,7 +51,13 @@ class CampaignResultsController extends CampaignsAppController {
  * @return void
  */
 	public function index() {
-		$this->set('campaignResults', $campaignResults = $this->paginate());
+		$this->request->data = $this->CampaignResult->Campaign->find('all', array(
+			'contain' => array(
+				'CampaignResults' => array(
+					'order' => array('CampaignResults.modified' => 'DESC')
+				)
+			)
+		));
 	}
 
 	//9459322447
