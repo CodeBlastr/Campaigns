@@ -15,7 +15,6 @@ usort($results, function($a, $b) {
 $latestActivity = $results;
 ?>
 <div class="row well">
-	<div class="col-md-1">[image]</div>
 	<div class="col-md-6">
 		<div class="row">
 			<div class="col-md-12"><h3><?php echo $partner['full_name'] ?></h3></div>
@@ -25,7 +24,6 @@ $latestActivity = $results;
 			<div class="col-md-6">Partner since: <?php echo date('m/d/Y', $partner['created']) ?></div>
 		</div>
 	</div>
-	<div class="col-md-1 col-md-offset-3">Status: [status]</div>
 </div>
 
 <h4>Dashboard</h4>
