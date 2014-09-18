@@ -73,6 +73,9 @@ class Campaign extends CampaignsAppModel {
 				'searchTagsField' => 'description'
 			);
 		}
+		if (CakePlugin::loaded('Categories')) {			
+			$this->actsAs['Categories.Categorizable'] = array('modelAlias' => 'Campaign');
+		}
 		parent::__construct($id, $table, $ds);
 	}
 
