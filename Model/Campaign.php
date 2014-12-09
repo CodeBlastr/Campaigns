@@ -76,6 +76,10 @@ class Campaign extends CampaignsAppModel {
 		if (CakePlugin::loaded('Categories')) {			
 			$this->actsAs['Categories.Categorizable'] = array('modelAlias' => 'Campaign');
 		}
+		// Media added for one site ^JB
+		if (CakePlugin::loaded('Media')) {
+			$this->actsAs[] = 'Media.MediaAttachable';
+		}
 		parent::__construct($id, $table, $ds);
 	}
 
