@@ -15,8 +15,51 @@ class AppCampaignsController extends CampaignsAppController {
  *
  * @return void
  */
-	public function index() {
+	public function index() {	
+		if(CakePlugin::loaded('Categories')) {
+			$this->paginate['contain'][] = 'Category';
+			
+			if (!empty($this->request->query['category'])) {
+				// only supporting one category in search for now (not used by anyone anyway)
+				$joins = array(
+			           array('table'=>'categorized', 
+			                 'alias' => 'Categorized',
+			                 'type'=>'left',
+			                 'conditions'=> array(
+			                 	'Categorized.foreign_key = Campaign.id'
+			           )),
+			           array('table'=>'categories', 
+			                 'alias' => 'Category',
+			                 'type'=>'left',
+			                 'conditions'=> array(
+			                 	'Category.id = Categorized.category_id'
+					   ))
+			         );
+				$this->paginate['joins'] = $joins;
+				$this->paginate['conditions']['Category.name'] = $this->request->query['category'];
+			}
+		}
+		
+		if ($this->request->query['q']) {
+			$this->paginate['conditions']['OR']['Campaign.name LIKE'] = '%'.$this->request->query['q'].'%';
+			$this->paginate['conditions']['OR']['Campaign.description LIKE'] = '%'.$this->request->query['q'].'%';
+		}
+		
+		$this->paginate['limit'] = 9;
 		$this->set('campaigns', $campaigns = $this->paginate());
+		
+		// this fills a search form on this page for moderncents (copy if deleting, probably shouldn't be here by default)
+		if (CakePlugin::loaded('Categories')) {
+			$this->set('categories', $categories = $this->Campaign->Category->find('list', array(
+				'conditions' => array(
+					'Category.model' => 'Campaign',
+					),
+				'fields' => array(
+					'Category.name', 
+					'Category.name'
+					)
+				)));
+		}
 	}
 
 /**
@@ -173,14 +216,23 @@ class AppCampaignsController extends CampaignsAppController {
 				$this->Session->setFlash(__('Could not be saved. Please, try again.'), 'flash_warning');
 			}
 		}
-
-		if ($this->request->is('get')) {
-			if ($this->Session->read('Auth.User.user_role_id') == '1') {
-				$this->set('merchants', $this->Campaign->Owner->find('list', array(
-					'conditions' => array('Owner.user_role_id' => '6')
-				)));
-			}
+		if (CakePlugin::loaded('Categories')) {
+			// yes I know it's stupid to have both here this was a quick fix
+			$this->set('categories', $categories = $this->Campaign->Category->find('list', array(
+				'conditions' => array(
+					'Category.model' => 'Campaign',
+				)
+			)));
 		}
+		
+		// who put this BS in here, what a bunch of junk
+		// if ($this->request->is('get')) {
+			// if ($this->Session->read('Auth.User.user_role_id') == '1') {
+				// $this->set('merchants', $this->Campaign->Owner->find('list', array(
+					// 'conditions' => array('Owner.user_role_id' => '6')
+				// )));
+			// }
+		// }
 	}
 
 /**
@@ -202,6 +254,14 @@ class AppCampaignsController extends CampaignsAppController {
 			}
 		}
 		$this->request->data = $this->Campaign->read(null, $id);
+		if (CakePlugin::loaded('Categories')) {
+			// yes I know it's stupid to have both here this was a quick fix
+			$this->set('categories', $categories = $this->Campaign->Category->find('list', array(
+				'conditions' => array(
+					'Category.model' => 'Campaign',
+				)
+			)));
+		}
 	}
 
 /**

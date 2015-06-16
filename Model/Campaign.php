@@ -3,9 +3,13 @@ App::uses('CampaignsAppModel', 'Campaigns.Model');
 /**
  * Campaign Model
  *
+ * Extension Code
+ * $refuseInit = true; require_once(ROOT.DS.'app'.DS.'Plugin'.DS.'Blogs'.DS.'Model'.DS.'BlogPost.php');
+ * 
  * @property Owner $Owner
  */
-class Campaign extends CampaignsAppModel {
+
+class AppCampaign extends CampaignsAppModel {
 
 	public $name = 'Campaign';
 /**
@@ -123,4 +127,8 @@ class Campaign extends CampaignsAppModel {
 		return $data;
 	}
 
+}
+
+if (!isset($refuseInit)) {
+	class Campaign extends AppCampaign {}
 }
