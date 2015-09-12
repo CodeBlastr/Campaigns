@@ -44,8 +44,6 @@ class AppCampaignsController extends CampaignsAppController {
 			$this->paginate['conditions']['OR']['Campaign.name LIKE'] = '%'.$this->request->query['q'].'%';
 			$this->paginate['conditions']['OR']['Campaign.description LIKE'] = '%'.$this->request->query['q'].'%';
 		}
-		
-		$this->paginate['limit'] = 9;
 		$this->set('campaigns', $campaigns = $this->paginate());
 		
 		// this fills a search form on this page for moderncents (copy if deleting, probably shouldn't be here by default)
